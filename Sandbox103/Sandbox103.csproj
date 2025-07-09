@@ -11,10 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="RepoPackagesRaw\PackageDependencies.csv" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!--<PackageReference Include="MSBuild.StructuredLogger" Version="2.3.17" />-->
     <PackageReference Include="Microsoft.Build" Version="17.11.31" />
     <PackageReference Include="Microsoft.Build.Framework" Version="17.11.31" />
