@@ -1,4 +1,5 @@
-﻿using Microsoft.Build.Framework;
+﻿#if false
+using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
 using Microsoft.Build.Logging.StructuredLogger;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -165,3 +166,4 @@ static List<ProjectFile> GetProjectFiles(LocalGitRepo repo, LogDrop logDrop)
 }
 
 Console.WriteLine("\nDone.");
+#endif
