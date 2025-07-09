@@ -31,6 +31,13 @@ public class LogDrop
 
     public string Path => _root.FullName;
 
+    public IEnumerable<string> Glob(string pattern)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(pattern);
+
+        return Glob(new Matcher().AddInclude(pattern));
+    }
+
     public IEnumerable<string> Glob(Matcher glob)
     {
         PatternMatchingResult searchResult = glob.Execute(_wrapper);

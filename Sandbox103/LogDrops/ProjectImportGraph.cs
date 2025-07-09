@@ -1,120 +1,81 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace Sandbox103.LogDrops;
 
 public class ProjectImportGraph
 {
-    private delegate bool TryGetValues(string projectFile, [NotNullWhen(true)] out IEnumerator<string>? values);
+    private readonly HashSet<ProjectImport> _projectImports;
+    private readonly Dictionary<string, ProjectImport> _lookup;
+    private readonly string _srcRoot;
+    private readonly string _rootProjectFile;
 
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _forward;
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _reverse;
-
-    public ProjectImportGraph()
+    public ProjectImportGraph(
+        HashSet<ProjectImport> projectImports,
+        Dictionary<string, ProjectImport> lookup,
+        string srcRoot,
+        string rootProjectFile)
     {
-        _forward = new(StringComparer.OrdinalIgnoreCase);
-        _reverse = new(StringComparer.OrdinalIgnoreCase);
+        ArgumentNullException.ThrowIfNull(projectImports);
+        ArgumentNullException.ThrowIfNull(lookup);
+        ArgumentException.ThrowIfNullOrEmpty(srcRoot);
+        ArgumentException.ThrowIfNullOrEmpty(rootProjectFile);
+
+        _projectImports = projectImports;
+        _lookup = lookup;
+        _srcRoot = srcRoot;
+        _rootProjectFile = rootProjectFile;
     }
 
-    public ICollection<string> GetKeys(bool reverse = false)
+    public IReadOnlySet<ProjectImport> ProjectImports => _projectImports;
+
+    public string SrcRoot => _srcRoot;
+
+    public string RootProjectFile => _rootProjectFile;
+
+    public bool TryGetValue(string path, [NotNullWhen(true)] out ProjectImport? value)
     {
-        return reverse ? _reverse.Keys : _forward.Keys;
+        return _lookup.TryGetValue(path, out value);
     }
 
-    public ICollection<string> Importers => _forward.Keys;
-
-    public ICollection<string> Importees => _reverse.Keys;
-
-    public void AddImport(string projectFile, string importedProjectFile)
+    public IEnumerable<ProjectImport> EnumerateTransitiveImports(ProjectImport projectFile)
     {
-        ArgumentException.ThrowIfNullOrEmpty(projectFile);
-        ArgumentException.ThrowIfNullOrEmpty(importedProjectFile);
+        ArgumentNullException.ThrowIfNull(projectFile);
 
-        static void Add(ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> cache, string key, string value)
-        {
-            ConcurrentDictionary<string, byte>? items;
-            ConcurrentDictionary<string, byte>? valueToAdd = null;
-
-            while (!cache.TryGetValue(key, out items))
-            {
-                cache.TryAdd(key, valueToAdd ??= new(StringComparer.OrdinalIgnoreCase));
-            }
-
-            while (!items.ContainsKey(value))
-            {
-                items.TryAdd(value, default);
-            }
-        }
-
-        Add(_forward, projectFile, importedProjectFile);
-        Add(_reverse, importedProjectFile, projectFile);
-    }
-
-    public bool TryGetImports(string projectFile, [NotNullWhen(true)] out IEnumerator<string>? values)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(projectFile);
-
-        if (_forward.TryGetValue(projectFile, out ConcurrentDictionary<string, byte>? items))
-        {
-            values = items.Select(static item => item.Key).GetEnumerator();
-            return true;
-        }
-
-        values = null;
-        return false;
-    }
-
-    public bool TryGetImporters(string projectFile, [NotNullWhen(true)] out IEnumerator<string>? values)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(projectFile);
-
-        if (_reverse.TryGetValue(projectFile, out ConcurrentDictionary<string, byte>? items))
-        {
-            values = items.Select(static item => item.Key).GetEnumerator();
-            return true;
-        }
-
-        values = null;
-        return false;
-    }
-
-    public IEnumerable<string> EnumerateTransitiveImports(string projectFile, bool reverse = false)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(projectFile);
-
-        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visited = new HashSet<ProjectImport>();
         visited.Add(projectFile);
 
-        return EnumerateCore(projectFile, visited, reverse ? TryGetImporters : TryGetImports);
+        return EnumerateCore(projectFile, visited, static p => p.Imports);
     }
 
-    private IEnumerable<string> EnumerateCore(string projectFile, HashSet<string> visited, TryGetValues tryGetValues)
+    public IEnumerable<ProjectImport> EnumerateTransitiveImporters(ProjectImport projectFile)
     {
-        if (tryGetValues.Invoke(projectFile, out IEnumerator<string>? it))
+        ArgumentNullException.ThrowIfNull(projectFile);
+
+        var visited = new HashSet<ProjectImport>();
+        visited.Add(projectFile);
+
+        return EnumerateCore(projectFile, visited, static p => p.Importers);
+    }
+
+    private IEnumerable<ProjectImport> EnumerateCore(ProjectImport projectFile, HashSet<ProjectImport> visited, Func<ProjectImport, IEnumerable<ProjectImport>> enumerateDirects)
+    {
+        foreach (ProjectImport value in enumerateDirects.Invoke(projectFile))
         {
-            using (it)
+            if (!visited.Add(value))
             {
-                while (it.MoveNext())
-                {
-                    string value = it.Current;
+                throw new InvalidOperationException($"Import cycle detected. ({value})");
+            }
 
-                    if (!visited.Add(value))
-                    {
-                        throw new InvalidOperationException($"Import cycle detected. ({value})");
-                    }
+            yield return value;
 
-                    yield return value;
+            foreach (ProjectImport transitiveValue in EnumerateCore(value, visited, enumerateDirects))
+            {
+                yield return transitiveValue;
+            }
 
-                    foreach (string transitiveValue in EnumerateCore(value, visited, tryGetValues))
-                    {
-                        yield return transitiveValue;
-                    }
-
-                    if (!visited.Remove(value))
-                    {
-                        throw new InvalidOperationException($"Unexpected error: corrupted import graph. ({value})");
-                    }
-                }
+            if (!visited.Remove(value))
+            {
+                throw new InvalidOperationException($"Unexpected error: corrupted import graph. ({value})");
             }
         }
     }

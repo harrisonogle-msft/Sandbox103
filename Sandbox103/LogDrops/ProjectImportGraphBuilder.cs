@@ -129,7 +129,7 @@ public class ProjectImportGraphBuilder
         }
     }
 
-    public ProjectImportGraphV2 Build()
+    public ProjectImportGraph Build()
     {
         Trace.WriteLine($"Building project import graph for binlog located at: '{_binLogPath}'");
 
@@ -402,6 +402,6 @@ public class ProjectImportGraphBuilder
 
         var projectImports = new HashSet<ProjectImport>(lookup.Values);
 
-        return new ProjectImportGraphV2(projectImports, lookup, srcRoot, rootProjectFile);
+        return new ProjectImportGraph(projectImports, lookup, srcRoot, rootProjectFile);
     }
 }
