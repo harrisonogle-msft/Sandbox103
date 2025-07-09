@@ -1,10 +1,6 @@
-﻿#if false
-using Microsoft.Build.Framework;
+﻿using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
-using Sandbox103.Extensions;
 using Sandbox103.Helpers;
-using System.Collections;
-using System.IO.Compression;
 
 FindReferences(@"C:\Users\harrisonogle\source\repos\sandbox\Sandbox104\Sandbox104\Sandbox104v4.binlog");
 Console.WriteLine("Done.");
@@ -13,7 +9,7 @@ static void FindReferences(string binLogPath)
 {
     ArgumentException.ThrowIfNullOrEmpty(binLogPath);
 
-    using BuildEventArgsReader reader = BinLogHelper.CreateBuildEventArgsReader(binLogPath);
+    using BuildEventArgsReader reader = BinLogHelper.OpenBuildEventsReader(binLogPath);
 
     HashSet<string> archiveFiles = new HashSet<string>(["HasReference.targets", "DoesNotHaveReference.targets"], StringComparer.OrdinalIgnoreCase);
 
@@ -181,4 +177,3 @@ static bool IsMyReference(KeyValuePair<string, ITaskItem> item)
         taskItem.GetMetadata("Author") is string author &&
         string.Equals(author, "Harrison", StringComparison.Ordinal);
 }
-#endif

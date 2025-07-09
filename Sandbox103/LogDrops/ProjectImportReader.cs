@@ -1,5 +1,6 @@
 ﻿using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
+using Sandbox103.Helpers;
 
 namespace Sandbox103.LogDrops;
 
@@ -15,7 +16,7 @@ public class ProjectImportReader
 
         Console.WriteLine($"Building project import graph for binlog located at: '{path}'");
 
-        using BuildEventArgsReader reader = BinaryLogReplayEventSource.OpenBuildEventsReader(path);
+        using BuildEventArgsReader reader = BinLogHelper.OpenBuildEventsReader(path);
 
         var graph = new ProjectImportGraph();
 
