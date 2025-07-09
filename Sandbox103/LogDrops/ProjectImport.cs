@@ -58,8 +58,16 @@ public class ProjectImport
 
     private string? GetProjectFileContent()
     {
-        string? projectFile = null;
-        string? content = null;
+        // Strip the root (F:\) because the archive paths don't contain the ':' but other paths from the binlog do.
+        string path = _projectFile;
+        string? root = Path.GetPathRoot(path);
+        if (!string.IsNullOrEmpty(root))
+        {
+            path = Path.GetRelativePath(root, path);
+        }
+
+        string? foundProjectFile = null;
+        string? foundFileContent = null;
 
         using (BuildEventArgsReader reader = BinLogHelper.OpenBuildEventsReader(_binLogPath))
         {
@@ -68,22 +76,22 @@ public class ProjectImport
                 ArchiveData archiveData = args.ArchiveData;
                 string fullPath = archiveData.FullPath;
 
-                if (string.Equals(fullPath, _projectFile, StringComparison.OrdinalIgnoreCase))
+                if (fullPath.EndsWith(path, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (projectFile is not null && !string.Equals(projectFile, fullPath, StringComparison.OrdinalIgnoreCase))
+                    if (foundProjectFile is not null && !string.Equals(foundProjectFile, fullPath, StringComparison.OrdinalIgnoreCase))
                     {
-                        throw new InvalidOperationException($"Unable to get content for archive file '{_projectFile}'; multiple matches found: '{projectFile}', '{fullPath}'");
+                        throw new InvalidOperationException($"Unable to get content for archive file '{path}'; multiple matches found: '{foundProjectFile}', '{fullPath}'");
                     }
 
                     string archiveFileContent = archiveData.ToArchiveFile().Content;
 
-                    if (content is not null && !string.Equals(content, archiveFileContent, StringComparison.Ordinal))
+                    if (foundFileContent is not null && !string.Equals(foundFileContent, archiveFileContent, StringComparison.Ordinal))
                     {
-                        throw new InvalidOperationException($"Unable to get content for archive file '{_projectFile}'; multiple matches found with different file contents.");
+                        throw new InvalidOperationException($"Unable to get content for archive file '{path}'; multiple matches found with different file contents.");
                     }
 
-                    projectFile = fullPath;
-                    content = archiveFileContent;
+                    foundProjectFile = fullPath;
+                    foundFileContent = archiveFileContent;
                 }
             };
 
@@ -93,6 +101,6 @@ public class ProjectImport
             }
         }
 
-        return content;
+        return foundFileContent;
     }
 }

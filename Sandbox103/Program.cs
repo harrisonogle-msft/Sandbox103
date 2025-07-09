@@ -27,7 +27,10 @@ foreach (ProjectFile projectFile in projectFiles)
     string logDropCsproj = importGraph.RootProjectFile;
     Console.WriteLine($"Found csproj file in the log drop: {logDropCsproj}");
 
-    IEnumerable<ProjectImport> privateTargets = importGraph.ProjectImports.Where(p => p.Importers.Count > 0 && p.ProjectFile.EndsWith(".private.targets", StringComparison.OrdinalIgnoreCase));
+    IEnumerable<ProjectImport> privateTargets = importGraph.ProjectImports.Where(
+        p => p.Importers.Count > 0 &&
+        (p.ProjectFile.EndsWith(".private.targets", StringComparison.OrdinalIgnoreCase) ||
+        (p.ProjectFile.StartsWith(importGraph.SrcRoot, StringComparison.OrdinalIgnoreCase) && p.ContainsReferenceItem())));
 
     var privateTargetsClosure = new HashSet<ProjectImport>(privateTargets);
 
@@ -66,6 +69,14 @@ foreach (ProjectFile projectFile in projectFiles)
         {
             importsToRemove.Add(directImport);
         }
+        //else
+        //{
+        //    if (directImport.ContainsReferenceItem())
+        //    {
+        //        Console.WriteLine($"(!!!) WARNING (!!!) Direct import '{directImport.ProjectFile}' contains a `Reference` item!");
+        //        importsToRemove.Add(directImport);
+        //    }
+        //}
     }
 
     if (importsToRemove.Count < 1)

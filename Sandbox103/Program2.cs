@@ -3,8 +3,42 @@ using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
 using Sandbox103.Helpers;
 
-FindReferences(@"C:\Users\harrisonogle\source\repos\sandbox\Sandbox104\Sandbox104\Sandbox104v4.binlog");
+//string binLogPath = @"C:\Users\harrisonogle\source\repos\sandbox\Sandbox104\Sandbox104\Sandbox104v4.binlog";
+string binLogPath = @"C:\Users\harrisonogle\temp\2025-07-06\logdrop\fb3c886ec00000J\Build\src\Source\LocationService\RestLSProxy\Logs\Retail\Amd64\msbuild.binlog";
+string projectFile = @"F:\dbs\el\aitp2\src\Targets\NetFx.targets";
+ParseBinLog(binLogPath);
 Console.WriteLine("Done.");
+
+static void ParseBinLog(string binLogPath)
+{
+    ArgumentException.ThrowIfNullOrEmpty(binLogPath);
+
+    List<string> list;
+
+    using (BuildEventArgsReader reader = BinLogHelper.OpenBuildEventsReader(binLogPath))
+    {
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        reader.ArchiveFileEncountered += (ArchiveFileEventArgs args) =>
+        {
+            files.Add(args.ArchiveData.FullPath);
+        };
+
+        while (reader.Read() is not null)
+        {
+        }
+
+        list = files.Order().ToList();
+    }
+
+    Task.Delay(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+
+    Console.WriteLine($"Found {list.Count} files.");
+    foreach (string file in list)
+    {
+        Console.WriteLine($"  {file}");
+    }
+}
 
 static void FindReferences(string binLogPath)
 {
