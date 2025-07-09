@@ -1,4 +1,5 @@
-﻿using Microsoft.Build.Framework;
+﻿#if false
+using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
 using Sandbox103.Helpers;
 
@@ -177,3 +178,4 @@ static bool IsMyReference(KeyValuePair<string, ITaskItem> item)
         taskItem.GetMetadata("Author") is string author &&
         string.Equals(author, "Harrison", StringComparison.Ordinal);
 }
+#endif

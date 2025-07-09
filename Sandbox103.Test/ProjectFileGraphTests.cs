@@ -20,10 +20,10 @@ public class ProjectFileGraphTests
     }
 
     [Fact]
-    public void ProjectFileGraph_Test()
+    public void ProjectImportGraphBuilder_Test()
     {
-        var reader = new ProjectImportReader();
-        ProjectImportGraph graph = reader.Build(Constants.BinLog.FullName);
+        var graph = new ProjectImportGraphBuilder(Constants.BinLog.FullName);
+        graph.Build();
         ICollection<string> importers = graph.GetKeys(false);
         ICollection<string> importees = graph.GetKeys(true);
 
