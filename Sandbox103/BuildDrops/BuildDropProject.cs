@@ -1,6 +1,6 @@
-﻿namespace Sandbox103;
+﻿namespace Sandbox103.BuildDrops;
 
-internal readonly record struct BuildDropProject
+public readonly record struct BuildDropProject
 {
     public required string ProjectPath { get; init; }
 

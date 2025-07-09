@@ -14,4 +14,13 @@
     <None Update="RepoPackagesRaw\PackageDependencies.csv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MSBuild.StructuredLogger" Version="2.3.17" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="9.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Assets\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

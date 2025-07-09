@@ -4,7 +4,7 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Runtime.Loader;
 
-namespace Sandbox103;
+namespace Sandbox103.BuildDrops;
 
 public class AssemblyEnumerator
 {
@@ -16,7 +16,7 @@ public class AssemblyEnumerator
     /// <remarks>
     /// Assembly metadata is used so that no assemblies are loaded during the course of the walk.
     /// </remarks>
-    internal IEnumerable<LocalAssembly> EnumerateDependencies(string rootAssembly, Action<LocalAssembly, LocalAssembly>? callback)
+    public IEnumerable<LocalAssembly> EnumerateDependencies(string rootAssembly, Action<LocalAssembly, LocalAssembly>? callback)
     {
         ArgumentNullException.ThrowIfNull(rootAssembly, nameof(rootAssembly));
 
@@ -31,7 +31,7 @@ public class AssemblyEnumerator
     /// <remarks>
     /// Assembly metadata is used so that no assemblies are loaded during the course of the walk.
     /// </remarks>
-    internal IEnumerable<LocalAssembly> EnumerateDependencies(IEnumerable<string> seedAssemblies, Action<LocalAssembly, LocalAssembly>? callback)
+    public IEnumerable<LocalAssembly> EnumerateDependencies(IEnumerable<string> seedAssemblies, Action<LocalAssembly, LocalAssembly>? callback)
     {
         ArgumentNullException.ThrowIfNull(seedAssemblies, nameof(seedAssemblies));
 
@@ -94,7 +94,7 @@ public class AssemblyEnumerator
     /// The function uses <see cref="MetadataReader"/> and <see cref="AssemblyDependencyResolver"/> to enumerate
     /// the vertex boundary using metadata only in order to avoid loading any assemblies because loads can affect JIT behavior.
     /// </remarks>
-    internal IEnumerable<string> EnumerateDirectDependencyPaths(string assemblyPath)
+    public IEnumerable<string> EnumerateDirectDependencyPaths(string assemblyPath)
     {
         ArgumentNullException.ThrowIfNull(assemblyPath, nameof(assemblyPath));
         assemblyPath = Path.GetFullPath(assemblyPath);

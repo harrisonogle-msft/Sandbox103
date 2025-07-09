@@ -1,6 +1,6 @@
-﻿namespace Sandbox103;
+﻿namespace Sandbox103.BuildDrops;
 
-internal class BuildDrop
+public class BuildDrop
 {
     private static readonly EnumerationOptions s_projectOutputEnumerationOptions =
         new EnumerationOptions

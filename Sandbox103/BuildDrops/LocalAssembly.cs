@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 
-namespace Sandbox103;
+namespace Sandbox103.BuildDrops;
 
 public readonly record struct LocalAssembly(string Path, AssemblyName AssemblyName, string? FileVersion)
 {
