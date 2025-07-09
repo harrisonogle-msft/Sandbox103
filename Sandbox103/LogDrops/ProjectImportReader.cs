@@ -1,18 +1,13 @@
 ﻿using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
-using Microsoft.Build.Logging.StructuredLogger;
 
 namespace Sandbox103.LogDrops;
 
 public class ProjectImportReader
 {
-    private BinLogReader? _reader;
-
     public ProjectImportReader()
     {
     }
-
-    private BinLogReader Reader => _reader ?? Interlocked.CompareExchange(ref _reader, new(), null) ?? _reader!;
 
     public ProjectImportGraph Build(string path)
     {
@@ -20,11 +15,13 @@ public class ProjectImportReader
 
         Console.WriteLine($"Building project import graph for binlog located at: '{path}'");
 
+        using BuildEventArgsReader reader = BinaryLogReplayEventSource.OpenBuildEventsReader(path);
+
         var graph = new ProjectImportGraph();
 
-        foreach (Record record in Reader.ReadRecords(path))
+        while (reader.Read() is BuildEventArgs buildEventArgs)
         {
-            if (record.Args is ProjectImportedEventArgs args)
+            if (buildEventArgs is ProjectImportedEventArgs args)
             {
                 string? importedProjectFile = args.ImportedProjectFile ?? args.UnexpandedProject;
 

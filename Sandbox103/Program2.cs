@@ -1,52 +1,19 @@
-﻿using Microsoft.Build.Framework;
+﻿#if false
+using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
-using Microsoft.Build.Logging.StructuredLogger;
 using Sandbox103.Extensions;
+using Sandbox103.Helpers;
 using System.Collections;
 using System.IO.Compression;
 
-using BuildEventArgsReader = Microsoft.Build.Logging.BuildEventArgsReader;
-using BinaryLogger = Microsoft.Build.Logging.BinaryLogger;
-//using ArchiveFileEventArgs = ArchiveFileEventArgs;
-using System.Diagnostics;
-using ArchiveFileEventArgs = Microsoft.Build.Logging.ArchiveFileEventArgs;
-using ArchiveFile = Microsoft.Build.Logging.ArchiveFile;
-
-FindReferences2(@"C:\Users\harrisonogle\source\repos\sandbox\Sandbox104\Sandbox104\Sandbox104v4.binlog");
+FindReferences(@"C:\Users\harrisonogle\source\repos\sandbox\Sandbox104\Sandbox104\Sandbox104v4.binlog");
 Console.WriteLine("Done.");
 
-static void FindReferences2(string binLogPath)
+static void FindReferences(string binLogPath)
 {
     ArgumentException.ThrowIfNullOrEmpty(binLogPath);
 
-    static BuildEventArgsReader OpenReader(BinaryReader binaryReader)
-    {
-        const int ForwardCompatibilityMinimalVersion = 18;
-
-        int fileFormatVersion = binaryReader.ReadInt32();
-        bool hasEventOffsets = fileFormatVersion >= ForwardCompatibilityMinimalVersion;
-        int minimumReaderVersion = hasEventOffsets
-            ? binaryReader.ReadInt32()
-            : fileFormatVersion;
-
-        //EnsureFileFormatVersionKnown(fileFormatVersion, minimumReaderVersion);
-
-        var reader = new BuildEventArgsReader(binaryReader, fileFormatVersion);
-
-        reader.SkipUnknownEventParts = hasEventOffsets;
-        reader.SkipUnknownEvents = hasEventOffsets;
-
-        // Ensure some handler is subscribed, even if we are not interested in the events
-        reader.RecoverableReadError += (_ => { });
-
-        return reader;
-    }
-
-    using var stream = new FileStream(binLogPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-    using var gzipStream = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
-    using var bufferedStream = new BufferedStream(gzipStream, 32768);
-    using var binaryReader = new BinaryReader(bufferedStream);
-    using BuildEventArgsReader reader = OpenReader(binaryReader);
+    using BuildEventArgsReader reader = BinLogHelper.CreateBuildEventArgsReader(binLogPath);
 
     HashSet<string> archiveFiles = new HashSet<string>(["HasReference.targets", "DoesNotHaveReference.targets"], StringComparer.OrdinalIgnoreCase);
 
@@ -78,7 +45,6 @@ static void FindReferences2(string binLogPath)
 
     var types = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-
     while (reader.Read() is BuildEventArgs args)
     {
         if (args.GetType()?.FullName is string fullTypeName)
@@ -89,6 +55,19 @@ static void FindReferences2(string binLogPath)
             }
             types[fullTypeName] = count + 1;
         }
+
+        if (args is ProjectImportedEventArgs projectImportedEventArgs)
+        {
+            ProjectImported(projectImportedEventArgs);
+        }
+    }
+
+    static void ProjectImported(ProjectImportedEventArgs args)
+    {
+        string? projectFile = args.ProjectFile;
+        string? file = args.File;
+        string? importedProjectFile = args.ImportedProjectFile;
+        bool importIgnored = args.ImportIgnored;
     }
 
     Console.WriteLine($"Displaying count by event type.");
@@ -98,97 +77,97 @@ static void FindReferences2(string binLogPath)
     }
 }
 
-static void FindReferences(string binLogPath)
-{
-    ArgumentException.ThrowIfNullOrEmpty(binLogPath);
+//static void FindReferences(string binLogPath)
+//{
+//    ArgumentException.ThrowIfNullOrEmpty(binLogPath);
 
-    var reader = new BinLogReader();
+//    var reader = new BinLogReader();
 
-    var types = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+//    var types = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-    foreach (Record record in reader.ReadRecords(binLogPath))
-    {
-        BuildEventArgs? args = record.Args;
+//    foreach (Record record in reader.ReadRecords(binLogPath))
+//    {
+//        BuildEventArgs? args = record.Args;
 
-        if (args is ProjectEvaluationStartedEventArgs projectEvaluationStartedEventArgs)
-        {
-            HandleProjectEvaluationStartedEventArgs(projectEvaluationStartedEventArgs);
-        }
-        else if (args is ProjectEvaluationFinishedEventArgs projectEvaluationFinishedEventArgs)
-        {
-            HandleProjectEvaluationFinishedEventArgs(projectEvaluationFinishedEventArgs);
-        }
-        else if (args is ProjectFinishedEventArgs projectFinishedEventArgs)
-        {
-            HandleProjectFinishedEventArgs(projectFinishedEventArgs);
-        }
-        else if (args is ProjectStartedEventArgs projectStartedEventArgs)
-        {
-            HandleProjectStartedEventArgs(projectStartedEventArgs);
-        }
-        else if (args is ProjectImportedEventArgs projectImportedEventArgs)
-        {
-            HandleProjectImportedEventArgs(projectImportedEventArgs);
-        }
-        else if (args is TaskParameterEventArgs taskParameterEventArgs)
-        {
-            HandleTaskParameterEventArgs(taskParameterEventArgs);
-        }
-    }
+//        if (args is ProjectEvaluationStartedEventArgs projectEvaluationStartedEventArgs)
+//        {
+//            HandleProjectEvaluationStartedEventArgs(projectEvaluationStartedEventArgs);
+//        }
+//        else if (args is ProjectEvaluationFinishedEventArgs projectEvaluationFinishedEventArgs)
+//        {
+//            HandleProjectEvaluationFinishedEventArgs(projectEvaluationFinishedEventArgs);
+//        }
+//        else if (args is ProjectFinishedEventArgs projectFinishedEventArgs)
+//        {
+//            HandleProjectFinishedEventArgs(projectFinishedEventArgs);
+//        }
+//        else if (args is ProjectStartedEventArgs projectStartedEventArgs)
+//        {
+//            HandleProjectStartedEventArgs(projectStartedEventArgs);
+//        }
+//        else if (args is ProjectImportedEventArgs projectImportedEventArgs)
+//        {
+//            HandleProjectImportedEventArgs(projectImportedEventArgs);
+//        }
+//        else if (args is TaskParameterEventArgs taskParameterEventArgs)
+//        {
+//            HandleTaskParameterEventArgs(taskParameterEventArgs);
+//        }
+//    }
 
-    static void HandleProjectEvaluationStartedEventArgs(ProjectEvaluationStartedEventArgs args)
-    {
-    }
+//    static void HandleProjectEvaluationStartedEventArgs(ProjectEvaluationStartedEventArgs args)
+//    {
+//    }
 
-    static void HandleProjectEvaluationFinishedEventArgs(ProjectEvaluationFinishedEventArgs args)
-    {
-        List<KeyValuePair<string, ITaskItem>> list = args.EnumerateItems().OrderBy(static kvp => kvp.Key).ToList();
+//    static void HandleProjectEvaluationFinishedEventArgs(ProjectEvaluationFinishedEventArgs args)
+//    {
+//        List<KeyValuePair<string, ITaskItem>> list = args.EnumerateItems().OrderBy(static kvp => kvp.Key).ToList();
 
-        ITaskItem? reference = args.EnumerateItems().Where(IsMyReference).Select(static item => item.Value).SingleOrDefault();
+//        ITaskItem? reference = args.EnumerateItems().Where(IsMyReference).Select(static item => item.Value).SingleOrDefault();
 
-        string? projectFile = args.ProjectFile;
+//        string? projectFile = args.ProjectFile;
 
-        if (reference is not null)
-        {
-        }
-    }
+//        if (reference is not null)
+//        {
+//        }
+//    }
 
-    static void HandleProjectFinishedEventArgs(ProjectFinishedEventArgs args)
-    {
-    }
+//    static void HandleProjectFinishedEventArgs(ProjectFinishedEventArgs args)
+//    {
+//    }
 
-    static void HandleProjectStartedEventArgs(ProjectStartedEventArgs args)
-    {
-        List<KeyValuePair<string, ITaskItem>> list = args.EnumerateItems().OrderBy(static kvp => kvp.Key).ToList();
+//    static void HandleProjectStartedEventArgs(ProjectStartedEventArgs args)
+//    {
+//        List<KeyValuePair<string, ITaskItem>> list = args.EnumerateItems().OrderBy(static kvp => kvp.Key).ToList();
 
-        ITaskItem? reference = args.EnumerateItems().Where(IsMyReference).Select(static item => item.Value).SingleOrDefault();
+//        ITaskItem? reference = args.EnumerateItems().Where(IsMyReference).Select(static item => item.Value).SingleOrDefault();
 
-        string? projectFile = args.ProjectFile;
+//        string? projectFile = args.ProjectFile;
 
-        if (reference is not null)
-        {
-        }
-    }
+//        if (reference is not null)
+//        {
+//        }
+//    }
 
-    static void HandleProjectImportedEventArgs(ProjectImportedEventArgs args)
-    {
-    }
+//    static void HandleProjectImportedEventArgs(ProjectImportedEventArgs args)
+//    {
+//    }
 
-    static void HandleTaskParameterEventArgs(TaskParameterEventArgs args)
-    {
-        var projectFile = args.ProjectFile;
-        var file = args.File;
-        var senderName = args.SenderName;
-        var items = args.Items;
+//    static void HandleTaskParameterEventArgs(TaskParameterEventArgs args)
+//    {
+//        var projectFile = args.ProjectFile;
+//        var file = args.File;
+//        var senderName = args.SenderName;
+//        var items = args.Items;
 
-        if (args.Kind == TaskParameterMessageKind.AddItem)
-        {
-            if (string.Equals(args.ItemType, "Reference", StringComparison.Ordinal))
-            {
-            }
-        }
-    }
-}
+//        if (args.Kind == TaskParameterMessageKind.AddItem)
+//        {
+//            if (string.Equals(args.ItemType, "Reference", StringComparison.Ordinal))
+//            {
+//            }
+//        }
+//    }
+//}
 
 static bool IsMyReference(KeyValuePair<string, ITaskItem> item)
 {
@@ -202,3 +181,4 @@ static bool IsMyReference(KeyValuePair<string, ITaskItem> item)
         taskItem.GetMetadata("Author") is string author &&
         string.Equals(author, "Harrison", StringComparison.Ordinal);
 }
+#endif
