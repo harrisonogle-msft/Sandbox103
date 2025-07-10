@@ -6,7 +6,7 @@ public static class Constants
 {
     private static DirectoryInfo? s_binDirectory;
     private static DirectoryInfo? s_assetsDirectory;
-    private static DirectoryInfo? s_dropPath;
+    private static DirectoryInfo? s_buildDropPath;
     private static DirectoryInfo? s_logDropPath;
     private static FileInfo? s_binLog;
     private static DirectoryInfo? s_repoDirectory;
@@ -15,7 +15,7 @@ public static class Constants
 
     public static DirectoryInfo AssetsDirectory => s_assetsDirectory ??= GetAssetsDirectory();
 
-    public static DirectoryInfo DropPath => s_dropPath ??= GetDropPath();
+    public static DirectoryInfo BuildDrop => s_buildDropPath ??= GetBuildDropPath();
 
     public static DirectoryInfo LogDrop => s_logDropPath ??= GetLogDropPath();
 
@@ -54,7 +54,7 @@ public static class Constants
         return directory;
     }
 
-    private static DirectoryInfo GetDropPath()
+    private static DirectoryInfo GetBuildDropPath()
     {
         const string VariableName = "Sandbox103_BuildDrop";
         string buildDrop = GetRequiredEnvironmentVariable(VariableName);

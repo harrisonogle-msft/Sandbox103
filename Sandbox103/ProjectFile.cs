@@ -3,12 +3,17 @@
 public class ProjectFile
 {
     private readonly string _path;
-    private readonly string _binlogPath;
+    private readonly string _binLogPath;
 
-    public ProjectFile(string path, string binlogPath)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ProjectFile"/> class.
+    /// </summary>
+    /// <param name="path">Path to the .*proj file in the local git repo.</param>
+    /// <param name="binLogPath">Path to the .binlog file associated with the build of this project.</param>
+    public ProjectFile(string path, string binLogPath)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        ArgumentException.ThrowIfNullOrEmpty(binlogPath);
+        ArgumentException.ThrowIfNullOrEmpty(binLogPath);
 
         if (!File.Exists(path))
         {
@@ -20,23 +25,23 @@ public class ProjectFile
             throw new ArgumentException("The given path is not a *proj file.", nameof(path));
         }
 
-        if (!File.Exists(binlogPath))
+        if (!File.Exists(binLogPath))
         {
-            throw new FileNotFoundException("Binlog file does not exist.", binlogPath);
+            throw new FileNotFoundException("Binlog file does not exist.", binLogPath);
         }
 
-        if (!System.IO.Path.GetExtension(binlogPath).EndsWith(".binlog", StringComparison.OrdinalIgnoreCase))
+        if (!System.IO.Path.GetExtension(binLogPath).EndsWith(".binlog", StringComparison.OrdinalIgnoreCase))
         {
-            throw new ArgumentException("The given binlog path is not a '.binlog' file.", nameof(binlogPath));
+            throw new ArgumentException("The given binlog path is not a '.binlog' file.", nameof(binLogPath));
         }
 
         _path = path;
-        _binlogPath = binlogPath;
+        _binLogPath = binLogPath;
 
         // TODO: validate that it's an XML file with the expected structure.
     }
 
     public string Path => _path;
 
-    public string BinLogPath => _binlogPath;
+    public string BinLogPath => _binLogPath;
 }

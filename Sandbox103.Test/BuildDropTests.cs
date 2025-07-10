@@ -19,7 +19,7 @@ public class BuildDropTests
     [Fact]
     public void EnumerateProjects_Test()
     {
-        var buildDrop = new BuildDrop(Constants.DropPath.FullName);
+        var buildDrop = new BuildDrop(Constants.BuildDrop.FullName);
 
         foreach (BuildDropProject project in buildDrop.EnumerateProjects())
         {
