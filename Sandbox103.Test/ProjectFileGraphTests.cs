@@ -40,13 +40,13 @@ public class ProjectFileGraphTests
 
 
         _output.WriteLine($"Getting imports.");
-        if (graph.TryGetImports(csproj, out IEnumerator<string>? imports))
+        if (graph.TryGetImports(csproj, out IEnumerator<ProjectImportInfo>? imports))
         {
             using (imports)
             {
                 while (imports.MoveNext())
                 {
-                    _output.WriteLine($"  {imports.Current}");
+                    _output.WriteLine($"  {imports.Current.ProjectFile}");
                 }
             }
         }
@@ -67,7 +67,7 @@ public class ProjectFileGraphTests
         _output.WriteLine($"\nFound private targets: {singlePrivateTargetsFile}");
 
         _output.WriteLine($"Getting importees for private targets '{Path.GetFileName(singlePrivateTargetsFile)}'.");
-        if (graph.TryGetImporters(singlePrivateTargetsFile, out IEnumerator<string>? importedBy))
+        if (graph.TryGetImporters(singlePrivateTargetsFile, out IEnumerator<ProjectImportInfo>? importedBy))
         {
             using (importedBy)
             {
@@ -79,7 +79,7 @@ public class ProjectFileGraphTests
         }
 
         _output.WriteLine($"Getting imports for private targets '{Path.GetFileName(singlePrivateTargetsFile)}'.");
-        if (graph.TryGetImports(singlePrivateTargetsFile, out IEnumerator<string>? importedBy2))
+        if (graph.TryGetImports(singlePrivateTargetsFile, out IEnumerator<ProjectImportInfo>? importedBy2))
         {
             using (importedBy2)
             {
@@ -114,13 +114,13 @@ public class ProjectFileGraphTests
         var privateTargetsImporters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (string privateTargetsFile in privateTargetsFiles)
         {
-            if (graph.TryGetImporters(privateTargetsFile, out IEnumerator<string>? it))
+            if (graph.TryGetImporters(privateTargetsFile, out IEnumerator<ProjectImportInfo>? it))
             {
                 using (it)
                 {
                     while (it.MoveNext())
                     {
-                        privateTargetsImporters.Add(it.Current);
+                        privateTargetsImporters.Add(it.Current.ProjectFile);
                     }
                 }
             }
