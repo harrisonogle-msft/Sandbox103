@@ -8,13 +8,37 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Sandbox103.LogDrops;
 
+public readonly struct ProjectImportInfo
+{
+    public ProjectImportInfo(string projectFile, string? unexpandedProjectFile)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(projectFile);
+
+        ProjectFile = projectFile;
+        UnexpandedProjectFile = unexpandedProjectFile;
+    }
+
+    public string ProjectFile { get; }
+
+    public string? UnexpandedProjectFile { get; }
+
+    public override int GetHashCode() => ProjectFile.GetHashCode();
+
+    public override bool Equals([NotNullWhen(true)] object? obj) =>
+        obj is ProjectImportInfo other &&
+        string.Equals(
+            ProjectFile,
+            other.ProjectFile,
+            StringComparison.OrdinalIgnoreCase);
+}
+
 public class ProjectImportGraphBuilder
 {
-    private delegate bool TryGetValues(string projectFile, [NotNullWhen(true)] out IEnumerator<string>? values);
+    private delegate bool TryGetValues(string projectFile, [NotNullWhen(true)] out IEnumerator<ProjectImportInfo>? values);
 
     private readonly string _binLogPath;
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _forward;
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _reverse;
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<ProjectImportInfo, byte>> _forward;
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<ProjectImportInfo, byte>> _reverse;
 
     public ProjectImportGraphBuilder(string binLogPath)
     {
@@ -35,19 +59,20 @@ public class ProjectImportGraphBuilder
 
     public ICollection<string> Importees => _reverse.Keys;
 
-    public void AddImport(string projectFile, string importedProjectFile)
+    public void AddImport(string projectFile, string importedProjectFile, string unexpandedProject)
     {
         ArgumentException.ThrowIfNullOrEmpty(projectFile);
         ArgumentException.ThrowIfNullOrEmpty(importedProjectFile);
+        ArgumentException.ThrowIfNullOrEmpty(unexpandedProject);
 
-        static void Add(ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> cache, string key, string value)
+        static void Add(ConcurrentDictionary<string, ConcurrentDictionary<ProjectImportInfo, byte>> cache, string key, ProjectImportInfo value)
         {
-            ConcurrentDictionary<string, byte>? items;
-            ConcurrentDictionary<string, byte>? valueToAdd = null;
+            ConcurrentDictionary<ProjectImportInfo, byte>? items;
+            ConcurrentDictionary<ProjectImportInfo, byte>? valueToAdd = null;
 
             while (!cache.TryGetValue(key, out items))
             {
-                cache.TryAdd(key, valueToAdd ??= new(StringComparer.OrdinalIgnoreCase));
+                cache.TryAdd(key, valueToAdd ??= new());
             }
 
             while (!items.ContainsKey(value))
@@ -56,15 +81,15 @@ public class ProjectImportGraphBuilder
             }
         }
 
-        Add(_forward, projectFile, importedProjectFile);
-        Add(_reverse, importedProjectFile, projectFile);
+        Add(_forward, projectFile, new ProjectImportInfo(importedProjectFile, unexpandedProject));
+        Add(_reverse, importedProjectFile, new ProjectImportInfo(projectFile, projectFile));
     }
 
-    public bool TryGetImports(string projectFile, [NotNullWhen(true)] out IEnumerator<string>? values)
+    public bool TryGetImports(string projectFile, [NotNullWhen(true)] out IEnumerator<ProjectImportInfo>? values)
     {
         ArgumentException.ThrowIfNullOrEmpty(projectFile);
 
-        if (_forward.TryGetValue(projectFile, out ConcurrentDictionary<string, byte>? items))
+        if (_forward.TryGetValue(projectFile, out ConcurrentDictionary<ProjectImportInfo, byte>? items))
         {
             values = items.Select(static item => item.Key).GetEnumerator();
             return true;
@@ -74,11 +99,11 @@ public class ProjectImportGraphBuilder
         return false;
     }
 
-    public bool TryGetImporters(string projectFile, [NotNullWhen(true)] out IEnumerator<string>? values)
+    public bool TryGetImporters(string projectFile, [NotNullWhen(true)] out IEnumerator<ProjectImportInfo>? values)
     {
         ArgumentException.ThrowIfNullOrEmpty(projectFile);
 
-        if (_reverse.TryGetValue(projectFile, out ConcurrentDictionary<string, byte>? items))
+        if (_reverse.TryGetValue(projectFile, out ConcurrentDictionary<ProjectImportInfo, byte>? items))
         {
             values = items.Select(static item => item.Key).GetEnumerator();
             return true;
@@ -100,13 +125,13 @@ public class ProjectImportGraphBuilder
 
     private IEnumerable<string> EnumerateCore(string projectFile, HashSet<string> visited, TryGetValues tryGetValues)
     {
-        if (tryGetValues.Invoke(projectFile, out IEnumerator<string>? it))
+        if (tryGetValues.Invoke(projectFile, out IEnumerator<ProjectImportInfo>? it))
         {
             using (it)
             {
                 while (it.MoveNext())
                 {
-                    string value = it.Current;
+                    string value = it.Current.ProjectFile;
 
                     if (!visited.Add(value))
                     {
@@ -140,6 +165,7 @@ public class ProjectImportGraphBuilder
         {
             var environmentVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var imports = new List<ProjectImportedEventArgs>();
+            var directImports = new List<ProjectImportedEventArgs>();
 
             void ProjectEvaluationStarted(ProjectEvaluationStartedEventArgs args)
             {
@@ -237,10 +263,10 @@ public class ProjectImportGraphBuilder
                     imports.Clear();
                 }
 
-                foreach (var projectImportedArgs in list)
+                foreach (ProjectImportedEventArgs projectImportedEventArgs in list)
                 {
-                    string projectFile = projectImportedArgs.ProjectFile;
-                    string import = projectImportedArgs.ImportedProjectFile ?? projectImportedArgs.UnexpandedProject;
+                    string projectFile = projectImportedEventArgs.ProjectFile;
+                    string import = projectImportedEventArgs.ImportedProjectFile ?? projectImportedEventArgs.UnexpandedProject;
 
                     const string MSBuildThisFileDirectory = "$(MSBuildThisFileDirectory)";
                     const string MSBuildThisFile = "$(MSBuildThisFile)";
@@ -268,7 +294,22 @@ public class ProjectImportGraphBuilder
                         Trace.WriteLine($"Expanded project import '{import}' to '{expandedImport}'");
                     }
 
-                    AddImport(projectFile, expandedImport);
+                    AddImport(projectFile, expandedImport, projectImportedEventArgs.UnexpandedProject);
+
+                    if (string.IsNullOrEmpty(rootProjectFile))
+                    {
+                        throw new InvalidOperationException("Missing root project file.");
+                    }
+
+                    if (string.Equals(projectFile, rootProjectFile, StringComparison.OrdinalIgnoreCase) ||
+                        (Path.GetPathRoot(rootProjectFile) is string rootProjectFileRoot &&
+                        projectFile.EndsWith(Path.GetRelativePath(rootProjectFileRoot, rootProjectFile), StringComparison.OrdinalIgnoreCase)))
+                    {
+                        lock (directImports)
+                        {
+                            directImports.Add(projectImportedEventArgs);
+                        }
+                    }
                 }
             }
 
@@ -363,15 +404,17 @@ public class ProjectImportGraphBuilder
 
         foreach (ProjectImport projectImport in lookup.Values)
         {
-            if (TryGetImports(projectImport.ProjectFile, out IEnumerator<string>? imports))
+            if (TryGetImports(projectImport.ProjectFile, out IEnumerator<ProjectImportInfo>? imports))
             {
                 using (imports)
                 {
                     while (imports.MoveNext())
                     {
-                        if (lookup.TryGetValue(imports.Current, out ProjectImport? import))
+                        ProjectImportInfo info = imports.Current;
+
+                        if (lookup.TryGetValue(imports.Current.ProjectFile, out ProjectImport? import))
                         {
-                            projectImport.AddImport(import);
+                            projectImport.AddImport(import, info);
                         }
                         else
                         {
@@ -381,13 +424,13 @@ public class ProjectImportGraphBuilder
                 }
             }
 
-            if (TryGetImporters(projectImport.ProjectFile, out IEnumerator<string>? importers))
+            if (TryGetImporters(projectImport.ProjectFile, out IEnumerator<ProjectImportInfo>? importers))
             {
                 using (importers)
                 {
                     while (importers.MoveNext())
                     {
-                        if (lookup.TryGetValue(importers.Current, out ProjectImport? importer))
+                        if (lookup.TryGetValue(importers.Current.ProjectFile, out ProjectImport? importer))
                         {
                             projectImport.AddImporter(importer);
                         }

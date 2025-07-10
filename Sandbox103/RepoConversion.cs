@@ -2,6 +2,7 @@
 using Sandbox103.BuildDrops;
 using Sandbox103.LogDrops;
 using Sandbox103.Repos;
+using System.Diagnostics;
 
 namespace Sandbox103;
 
@@ -44,66 +45,12 @@ public class RepoConversion
 
     public IReadOnlyList<ProjectFile> ProjectFiles => _projectFiles ??= GetProjectFiles(_repo, _logDrop);
 
-    public IReadOnlySet<ProjectImport> GetImportsToRemove(ProjectFile projectFile)
-    {
-        ArgumentNullException.ThrowIfNull(projectFile);
-
-        var builder = new ProjectImportGraphBuilder(projectFile.BinLogPath);
-        ProjectImportGraph graph = builder.Build();
-
-        string projectFileName = Path.GetFileName(projectFile.Path);
-
-        string relativeCsprojFile = Path.GetRelativePath(graph.SrcRoot, graph.RootProjectFile);
-        Console.WriteLine($"Relative csproj file: {relativeCsprojFile}");
-
-        string logDropCsproj = graph.RootProjectFile;
-        Console.WriteLine($"Found csproj file in the log drop: {logDropCsproj}");
-
-        IEnumerable<ProjectImport> privateTargets = graph.ProjectImports.Where(
-            p => p.Importers.Count > 0 &&
-            (p.ProjectFile.EndsWith(".private.targets", StringComparison.OrdinalIgnoreCase) ||
-            (p.ProjectFile.StartsWith(graph.SrcRoot, StringComparison.OrdinalIgnoreCase) && p.ContainsReferenceItem())));
-
-        var privateTargetsClosure = new HashSet<ProjectImport>(privateTargets);
-
-        foreach (ProjectImport privateTargetsFile in privateTargets)
-        {
-            foreach (ProjectImport transitiveImport in graph.EnumerateTransitiveImports(privateTargetsFile))
-            {
-                privateTargetsClosure.Add(transitiveImport);
-            }
-
-            foreach (ProjectImport transitiveImporter in graph.EnumerateTransitiveImporters(privateTargetsFile))
-            {
-                privateTargetsClosure.Add(transitiveImporter);
-            }
-        }
-
-        privateTargetsClosure.RemoveWhere(static item => Path.GetExtension(item.ProjectFile)?.EndsWith("proj") is true);
-
-        if (!graph.TryGetValue(logDropCsproj, out ProjectImport? rootProjectImport))
-        {
-            // This is an unexpected error because we already built an import graph using that csproj file's binlog as the root.
-            throw new InvalidOperationException($"Unexpected error: project file '{logDropCsproj}' has no direct imports.");
-        }
-
-        var importsToRemove = new HashSet<ProjectImport>();
-
-        foreach (ProjectImport directImport in rootProjectImport.Imports)
-        {
-            if (privateTargetsClosure.Contains(directImport))
-            {
-                importsToRemove.Add(directImport);
-            }
-        }
-
-        return importsToRemove;
-    }
-
     public static List<ProjectFile> GetProjectFiles(LocalGitRepo repo, LogDrop logDrop)
     {
         ArgumentNullException.ThrowIfNull(repo);
         ArgumentNullException.ThrowIfNull(logDrop);
+
+        long t0 = Stopwatch.GetTimestamp();
 
         var projectFiles = new List<ProjectFile>();
 
@@ -119,6 +66,7 @@ public class RepoConversion
             {
                 if (!it.MoveNext())
                 {
+                    // This happens when a project in the local repo is not included in the official build.
                     Console.WriteLine($"Unable to find binlog under project directory '{csprojDir}'.");
                     continue;
                 }
@@ -134,6 +82,8 @@ public class RepoConversion
             Console.WriteLine($"Found binlog: {binlogPath}");
             projectFiles.Add(new ProjectFile(Path.Join(repo.BaseDir, csproj), binlogPath));
         }
+
+        Trace.WriteLine($"Retrieved project files from local git repo. ({Stopwatch.GetElapsedTime(t0)})");
 
         return projectFiles;
     }

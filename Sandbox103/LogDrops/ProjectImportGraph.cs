@@ -44,7 +44,7 @@ public class ProjectImportGraph
         var visited = new HashSet<ProjectImport>();
         visited.Add(projectFile);
 
-        return EnumerateCore(projectFile, visited, static p => p.Imports);
+        return EnumerateCore(projectFile, visited, static p => p.Imports.Select(static x => x.Value));
     }
 
     public IEnumerable<ProjectImport> EnumerateTransitiveImporters(ProjectImport projectFile)

@@ -8,17 +8,18 @@ var conversion = new RepoConversion(new RepoConversionOptions
     BuildDropPath = Constants.BuildDrop.FullName,
 });
 
-// Test a subset of csproj files for now.
-IEnumerable<ProjectFile> projectFiles = conversion.ProjectFiles.Where(projectFile =>
-    Path.GetFileName(projectFile.Path).Contains("LocationService", StringComparison.OrdinalIgnoreCase));
+IEnumerable<ProjectFile> projectFiles =
+    //conversion.ProjectFiles.Where(projectFile =>
+    //Path.GetFileName(projectFile.Path).Equals("RestLocationServiceProxy.csproj", StringComparison.OrdinalIgnoreCase));
+    conversion.ProjectFiles;
 
 foreach (ProjectFile projectFile in projectFiles)
 {
     Console.WriteLine("---");
 
-    IReadOnlySet<ProjectImport> importsToRemove = conversion.GetImportsToRemove(projectFile);
-
     string projectFileName = Path.GetFileName(projectFile.Path);
+
+    IReadOnlySet<DirectProjectImport> importsToRemove = projectFile.GetImportsToRemove();
 
     if (importsToRemove.Count < 1)
     {
@@ -26,10 +27,13 @@ foreach (ProjectFile projectFile in projectFiles)
     }
     else
     {
-        Console.WriteLine($"Found {importsToRemove.Count} project imports to remove from '{projectFileName}'.");
-        foreach (ProjectImport importToRemove in importsToRemove.OrderBy(static x => x.ProjectFile))
+        Console.WriteLine($"Found {importsToRemove.Count} project import(s) to remove from '{projectFileName}'.");
+        foreach (DirectProjectImport importToRemove in importsToRemove.OrderBy(static x => x.Value.ProjectFile))
         {
-            Console.WriteLine($"   {importToRemove.ProjectFile}");
+            string unexpandedProjectFile = importToRemove.Info.UnexpandedProjectFile ??
+                throw new InvalidOperationException($"Direct import '{importToRemove.Value.ProjectFile}' is missing unexpanded project file.");
+
+            Console.WriteLine($"   {unexpandedProjectFile}");
         }
     }
 }
