@@ -6,8 +6,8 @@ public static class Constants
 {
     private static DirectoryInfo? s_binDirectory;
     private static DirectoryInfo? s_assetsDirectory;
-    private static FileInfo? s_dropPath;
-    private static FileInfo? s_logDropPath;
+    private static DirectoryInfo? s_dropPath;
+    private static DirectoryInfo? s_logDropPath;
     private static FileInfo? s_binLog;
     private static DirectoryInfo? s_repoDirectory;
 
@@ -15,9 +15,9 @@ public static class Constants
 
     public static DirectoryInfo AssetsDirectory => s_assetsDirectory ??= GetAssetsDirectory();
 
-    public static FileInfo DropPath => s_dropPath ??= GetDropPath();
+    public static DirectoryInfo DropPath => s_dropPath ??= GetDropPath();
 
-    public static FileInfo LogDrop => s_logDropPath ??= GetLogDropPath();
+    public static DirectoryInfo LogDrop => s_logDropPath ??= GetLogDropPath();
 
     public static FileInfo BinLog => s_binLog ??= GetBinLog();
 
@@ -54,14 +54,28 @@ public static class Constants
         return directory;
     }
 
-    private static FileInfo GetDropPath()
+    private static DirectoryInfo GetDropPath()
     {
-        return new FileInfo(@"C:\Users\harrisonogle\temp\2025-07-06\drop");
+        const string VariableName = "Sandbox103_BuildDrop";
+        string buildDrop = GetRequiredEnvironmentVariable(VariableName);
+        var directory = new DirectoryInfo(buildDrop);
+        if (!directory.Exists)
+        {
+            throw new DirectoryNotFoundException(buildDrop);
+        }
+        return directory;
     }
 
-    private static FileInfo GetLogDropPath()
+    private static DirectoryInfo GetLogDropPath()
     {
-        return new FileInfo(@"C:\Users\harrisonogle\temp\2025-07-06\logdrop");
+        const string VariableName = "Sandbox103_LogDrop";
+        string logDrop = GetRequiredEnvironmentVariable(VariableName);
+        var directory = new DirectoryInfo(logDrop);
+        if (!directory.Exists)
+        {
+            throw new DirectoryNotFoundException(logDrop);
+        }
+        return directory;
     }
 
     private static FileInfo GetBinLog()
@@ -80,13 +94,23 @@ public static class Constants
 
     private static DirectoryInfo GetRepoDirectory()
     {
-        var directory = new DirectoryInfo(@"D:\msazure\Intune\Svc\ProxyFrontEnd");
+        const string VariableName = "Sandbox103_Repo";
+        string repoRoot = GetRequiredEnvironmentVariable(VariableName);
+        var directory = new DirectoryInfo(repoRoot);
 
         if (!directory.Exists)
         {
-            throw new DirectoryNotFoundException("Unable to find repository root.");
+            throw new DirectoryNotFoundException(repoRoot);
         }
 
         return directory;
+    }
+
+    private static string GetRequiredEnvironmentVariable(string variable)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(variable);
+
+        return Environment.GetEnvironmentVariable(variable) ??
+            throw new InvalidOperationException($"Missing environment variable: '{variable}'.");
     }
 }
