@@ -2,8 +2,15 @@
 
 public class LocalGitRepo
 {
+    private static readonly EnumerationOptions s_corextConfigEnumerationOptions = new EnumerationOptions
+    {
+        MatchCasing = MatchCasing.CaseInsensitive,
+        RecurseSubdirectories = true,
+    };
+
     private readonly string _root;
     private readonly string _src;
+    private readonly string _corextConfig;
 
     public LocalGitRepo(string path)
     {
@@ -33,11 +40,21 @@ public class LocalGitRepo
         _src = Directory.EnumerateDirectories(_root, "src", SearchOption.TopDirectoryOnly).SingleOrDefault() ??
             Directory.EnumerateDirectories(_root, "src", SearchOption.AllDirectories).FirstOrDefault() ??
             throw new DirectoryNotFoundException("Unable to find the 'src' directory under the repository root.");
+
+        string corextConfigPath = Path.Join(_root, "build", "corext", "corext.config");
+        if (!File.Exists(corextConfigPath))
+        {
+            corextConfigPath = Directory.EnumerateFiles(_root, "corext.config", s_corextConfigEnumerationOptions).SingleOrDefault() ??
+                throw new FileNotFoundException("Unable to find corext.config.");
+        }
+        _corextConfig = corextConfigPath;
     }
 
     public string BaseDir => _root;
 
     public string SrcRoot => _src;
+
+    public string CorextConfig => _corextConfig;
 
     public IEnumerable<string> EnumerateProjectFiles(string? relativePath = null, string? fileExtension = null, bool relativePaths = false)
     {
@@ -73,9 +90,6 @@ public class LocalGitRepo
         }
 
         string searchPattern = fileExtension.StartsWith('.') ? $"*{fileExtension}" : $"*.{fileExtension}";
-        //string searchPattern = "RestLocationServiceProxy.csproj";
-        //string searchPattern = "Rest*.csproj";
-        //string searchPattern = "Rest*V2.csproj";
 
         IEnumerable<string> results = Directory.EnumerateFiles(path, searchPattern, SearchOption.AllDirectories);
 

@@ -202,6 +202,37 @@ public static class XmlHelper
         return count;
     }
 
+    public static IReadOnlyDictionary<string, string> GetCorextPackages(XmlDocument corextConfig)
+    {
+        ArgumentNullException.ThrowIfNull(corextConfig);
+
+        var results = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (corextConfig.SelectNodes("//packages/package[@dependencyToolState='TopLevel']") is XmlNodeList packages)
+        {
+            foreach (XmlElement package in packages)
+            {
+                string id = package.GetAttribute("id");
+
+                if (string.IsNullOrEmpty(id))
+                {
+                    throw new InvalidOperationException($"Corext.config package element is missing 'id' attribute: {package.OuterXml}");
+                }
+
+                string version = package.GetAttribute("version");
+
+                if (string.IsNullOrEmpty(version))
+                {
+                    throw new InvalidOperationException($"Corext.config package element is missing 'version' attribute: {package.OuterXml}");
+                }
+
+                results[id] = version;
+            }
+        }
+
+        return results;
+    }
+
     public static IReadOnlyDictionary<string, string?> GetPackageReferences(XmlDocument doc)
     {
         ArgumentNullException.ThrowIfNull(doc);
