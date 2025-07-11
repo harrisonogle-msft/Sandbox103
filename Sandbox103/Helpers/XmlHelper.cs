@@ -1,6 +1,7 @@
 ﻿using Sandbox103.BuildDrops;
 using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.XPath;
 
@@ -8,6 +9,8 @@ namespace Sandbox103.Helpers;
 
 public static class XmlHelper
 {
+    private static readonly Regex s_itemGroupLabelRegex = new Regex(@"[\s\w_-]+", RegexOptions.Compiled);
+
     public static int RemoveProjectImports(XmlReader reader, XmlWriter writer, Predicate<string> predicate)
     {
         var doc = new XmlDocument();
@@ -74,15 +77,59 @@ public static class XmlHelper
         return results.Count;
     }
 
+    public static bool IsSdkStyleProject(XmlDocument project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        XmlElement projectEl = project.SelectSingleNode("//Project") as XmlElement ?? throw new InvalidOperationException("Project element is missing.");
+
+        return !string.IsNullOrEmpty(projectEl.GetAttribute("Sdk"));
+    }
+
+    public static void ChangeProjectType(XmlDocument project, string sdk, bool removeLegacyAttributes = true)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentException.ThrowIfNullOrEmpty(sdk);
+
+        const string ToolsVersion = nameof(ToolsVersion);
+        const string DefaultTargets = nameof(DefaultTargets);
+
+        static void RemoveAttributeIfExists(XmlElement el, string attr)
+        {
+            if (!string.IsNullOrEmpty(el.GetAttribute(attr)))
+            {
+                el.SetAttribute(attr, null);
+            }
+        }
+
+        XmlElement projectEl = project.SelectSingleNode("//Project") as XmlElement ?? throw new InvalidOperationException("Project element is missing.");
+        if (removeLegacyAttributes)
+        {
+            RemoveAttributeIfExists(projectEl, ToolsVersion);
+            RemoveAttributeIfExists(projectEl, DefaultTargets);
+        }
+        projectEl.SetAttribute("Sdk", sdk);
+    }
+
     public static int AddPackageReferencesToProject(
         XmlDocument doc,
         IEnumerable<BinaryReference> packageReferences,
         string packageAttributeName,
-        string? versionAttributeName = null)
+        string? versionAttributeName = null,
+        string? itemGroupLabel = null,
+        IEnumerable<KeyValuePair<string, string>>? itemGroupAttributes = null)
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(packageReferences);
         ArgumentException.ThrowIfNullOrEmpty(packageAttributeName);
+
+        if (itemGroupLabel is not null)
+        {
+            if (!s_itemGroupLabelRegex.IsMatch(itemGroupLabel))
+            {
+                throw new ArgumentException($"Invalid ItemGroup label: {itemGroupLabel}", nameof(itemGroupLabel));
+            }
+        }
 
         using var it = packageReferences.GetEnumerator();
 
@@ -93,9 +140,30 @@ public static class XmlHelper
 
         XmlNode project = doc.SelectSingleNode("//Project") ?? throw new InvalidOperationException("Project node is missing.");
 
-        XmlNode? itemGroup = doc.SelectSingleNode("//ItemGroup[PackageReference]");
+        XmlNode? itemGroup = itemGroupLabel is not null ?
+            doc.SelectSingleNode($"//ItemGroup[@Label='{itemGroupLabel}' and PackageReference]") :
+            doc.SelectSingleNode("//ItemGroup[PackageReference]");
+
         bool insertItemGroup = itemGroup is null;
-        itemGroup ??= doc.CreateElement("ItemGroup");
+
+        if (insertItemGroup)
+        {
+            XmlElement itemGroupEl = doc.CreateElement("ItemGroup");
+            if (itemGroupLabel is not null)
+            {
+                itemGroupEl.SetAttribute("Label", itemGroupLabel);
+            }
+            if (itemGroupAttributes is not null)
+            {
+                foreach ((string key, string value) in itemGroupAttributes)
+                {
+                    itemGroupEl.SetAttribute(key, value);
+                }
+            }
+            itemGroup = itemGroupEl;
+        }
+
+        Debug.Assert(itemGroup is not null);
 
         IReadOnlyDictionary<string, string?> existingPackageReferences = GetPackageReferences(doc);
 
