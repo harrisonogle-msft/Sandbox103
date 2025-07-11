@@ -74,7 +74,7 @@ public static class XmlHelper
         return results.Count;
     }
 
-    public static void AddPackageReferencesToProject(
+    public static int AddPackageReferencesToProject(
         XmlDocument doc,
         IEnumerable<BinaryReference> packageReferences,
         string packageAttributeName,
@@ -88,7 +88,7 @@ public static class XmlHelper
 
         if (!it.MoveNext())
         {
-            return;
+            return 0;
         }
 
         XmlNode project = doc.SelectSingleNode("//Project") ?? throw new InvalidOperationException("Project node is missing.");
@@ -98,6 +98,8 @@ public static class XmlHelper
         itemGroup ??= doc.CreateElement("ItemGroup");
 
         IReadOnlyDictionary<string, string?> existingPackageReferences = GetPackageReferences(doc);
+
+        int count = 0;
 
         do
         {
@@ -112,6 +114,7 @@ public static class XmlHelper
                     packageReference.SetAttribute(versionAttributeName, version);
                 }
                 itemGroup.AppendChild(packageReference);
+                count++;
             }
         }
         while (it.MoveNext());
@@ -137,6 +140,8 @@ public static class XmlHelper
                 project.AppendChild(itemGroup);
             }
         }
+
+        return count;
     }
 
     public static IReadOnlyDictionary<string, string?> GetPackageReferences(XmlDocument doc)

@@ -18,6 +18,11 @@ IEnumerable<ProjectFile> rualsV1 =
     conversion.ProjectFiles.Where(projectFile =>
     Path.GetFileName(projectFile.Path).Equals("RestLocationServiceProxy.csproj", StringComparison.OrdinalIgnoreCase));
 
+using var packagesPropsSourceStream = new MemoryStream(File.ReadAllBytes(conversion.PackagesPropsFile));
+using var packagesPropsReader = new XmlTextReader(packagesPropsSourceStream) { Namespaces = false };
+var packagesProps = new XmlDocument();
+packagesProps.Load(packagesPropsReader);
+
 foreach (ProjectFile projectFile in all)
 {
     // Read the project file from the local git repo into memory and write the edits to file.
@@ -35,24 +40,29 @@ foreach (ProjectFile projectFile in all)
         Indentation = 2,
     };
 
-    var doc = new XmlDocument();
-    doc.Load(reader);
+    var project = new XmlDocument();
+    project.Load(reader);
 
     Console.WriteLine("---");
-    RemoveLegacyPackageImports(projectFile, doc);
-    AddPackageReferences(conversion, projectFile, doc);
+    RemoveLegacyPackageImports(projectFile, project);
+    AddPackageReferences(conversion, projectFile, project, packagesProps);
 
-    doc.Save(writer);
+    project.Save(writer);
     outputStream.SetLength(outputStream.Position);
 }
 
+using var packagesPropsFileStream = File.Open(conversion.PackagesPropsFile, FileMode.Open, FileAccess.Write, FileShare.None);
+using var packagesPropsTextWriter = new StreamWriter(packagesPropsFileStream, Encoding.UTF8);
+using var packagesPropsXmlWriter = new XmlTextWriter(packagesPropsTextWriter) { Namespaces = false, Formatting = Formatting.Indented, Indentation = 2 };
+packagesProps.Save(packagesPropsXmlWriter);
+
 Console.WriteLine("\nDone.");
 
-static void AddPackageReferences(RepoConversion conversion, ProjectFile projectFile, XmlDocument doc)
+static void AddPackageReferences(RepoConversion conversion, ProjectFile projectFile, XmlDocument project, XmlDocument packagesProps)
 {
     ArgumentNullException.ThrowIfNull(conversion);
     ArgumentNullException.ThrowIfNull(projectFile);
-    ArgumentNullException.ThrowIfNull(doc);
+    ArgumentNullException.ThrowIfNull(project);
 
     var projectReferences = new HashSet<ProjectFile>();
     var packageReferences = new HashSet<BinaryReference>();
@@ -60,13 +70,19 @@ static void AddPackageReferences(RepoConversion conversion, ProjectFile projectF
 
     Console.WriteLine($"Finding package references.");
 
-    foreach (string directDependencyPath in AssemblyHelper.EnumerateDirectDependencyPaths(projectFile.BinaryPath))
+    //foreach (string directDependencyPath in AssemblyHelper.EnumerateDirectDependencyPaths(projectFile.BinaryPath))
+    //{
+    //    foreach (LocalAssembly transitiveDependency in AssemblyHelper.EnumerateDependencies(directDependencyPath))
+    //    {
+    //        BinaryReference packageReference = transitiveDependency.ToBinaryReference();
+    //        implicitPackageReferences[packageReference.Name] = packageReference;
+    //    }
+    //}
+
+    foreach (LocalAssembly transitiveDependency in AssemblyHelper.EnumerateDependencies(seedAssemblies: AssemblyHelper.EnumerateDirectDependencyPaths(projectFile.BinaryPath)))
     {
-        foreach (LocalAssembly transitiveDependency in AssemblyHelper.EnumerateDependencies(directDependencyPath))
-        {
-            BinaryReference packageReference = transitiveDependency.ToBinaryReference();
-            implicitPackageReferences[packageReference.Name] = packageReference;
-        }
+        BinaryReference packageReference = transitiveDependency.ToBinaryReference();
+        implicitPackageReferences[packageReference.Name] = packageReference;
     }
 
     foreach (LocalAssembly localAssembly in AssemblyHelper.EnumerateDirectDependencies(projectFile.BinaryPath))
@@ -108,16 +124,34 @@ static void AddPackageReferences(RepoConversion conversion, ProjectFile projectF
 
     List<BinaryReference> packageReferenceList = packageReferences.ToList();
     packageReferenceList.Sort(static (x, y) => x.Name?.CompareTo(y.Name) ?? 0);
-    XmlHelper.AddPackageReferencesToProject(doc, packageReferenceList, "Include");
+    IReadOnlyDictionary<string, string?> currentPackagesProps = XmlHelper.GetPackageReferences(packagesProps);
+    foreach (BinaryReference packageReference in packageReferenceList)
+    {
+        string? versionAttr = null;
+
+        if (currentPackagesProps.TryGetValue(packageReference.Name, out string? currentVersion))
+        {
+            if (!string.Equals(currentVersion, packageReference.Version, StringComparison.OrdinalIgnoreCase))
+            {
+                versionAttr = "VersionOverride";
+            }
+        }
+        else
+        {
+            XmlHelper.AddPackageReferencesToProject(packagesProps, [packageReference], "Update", "Version");
+        }
+
+        XmlHelper.AddPackageReferencesToProject(project, [packageReference], "Include", versionAttr);
+    }
 
     // Assume this is already done - otherwise there wouldn't be a DLL in the build output.
     // XmlHelper.AddProjectReferencesToProject(...);
 }
 
-static int RemoveLegacyPackageImports(ProjectFile projectFile, XmlDocument doc)
+static int RemoveLegacyPackageImports(ProjectFile projectFile, XmlDocument project)
 {
     ArgumentNullException.ThrowIfNull(projectFile);
-    ArgumentNullException.ThrowIfNull(doc);
+    ArgumentNullException.ThrowIfNull(project);
 
     string projectFileName = Path.GetFileName(projectFile.Path);
 
@@ -141,7 +175,7 @@ static int RemoveLegacyPackageImports(ProjectFile projectFile, XmlDocument doc)
         }
 
         Predicate<string> shouldRemove = (string projectName) => importsToRemove.Any(x => string.Equals(x.Info.UnexpandedProjectFile, projectName, StringComparison.OrdinalIgnoreCase));
-        int numRemoved = XmlHelper.RemoveProjectImports(doc, shouldRemove);
+        int numRemoved = XmlHelper.RemoveProjectImports(project, shouldRemove);
         Console.WriteLine($"Removed {numRemoved} project import(s).");
 
         return numRemoved;

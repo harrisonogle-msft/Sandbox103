@@ -41,7 +41,7 @@ public static class AssemblyHelper
     /// <remarks>
     /// Assembly metadata is used so that no assemblies are loaded during the course of the walk.
     /// </remarks>
-    public static IEnumerable<LocalAssembly> EnumerateDependencies(IEnumerable<string> seedAssemblies, Action<LocalAssembly, LocalAssembly>? callback)
+    public static IEnumerable<LocalAssembly> EnumerateDependencies(IEnumerable<string> seedAssemblies, Action<LocalAssembly, LocalAssembly>? callback = null)
     {
         ArgumentNullException.ThrowIfNull(seedAssemblies, nameof(seedAssemblies));
 
