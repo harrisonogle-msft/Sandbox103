@@ -174,7 +174,7 @@ static void AddPackageReferences(RepoConversion conversion, ProjectFile projectF
     List<BinaryReference> packageReferenceList = packageReferences.ToList();
     packageReferenceList.Sort(static (x, y) => x.Name?.CompareTo(y.Name) ?? 0);
 
-    Console.WriteLine($"Found {packageReferenceList.Count} PackageReferences to add.");
+    Console.WriteLine($"Found {packageReferenceList.Count} PackageReference(s) to add.");
     foreach (BinaryReference packageReference in packageReferenceList)
     {
         Console.WriteLine($"  {packageReference.Name} {packageReference.Version}");
