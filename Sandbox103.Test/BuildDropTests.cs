@@ -1,4 +1,5 @@
 using Sandbox103.BuildDrops;
+using Sandbox103.Helpers;
 using System.Globalization;
 using System.Text;
 using Xunit.Abstractions;
@@ -23,7 +24,7 @@ public class BuildDropTests
 
         foreach (BuildDropProject project in buildDrop.EnumerateProjects())
         {
-            var helper = new AssemblyEnumerator();
+            var helper = new AssemblyHelper();
             LocalAssembly info = LocalAssembly.FromPath(project.BinaryPath);
 
             if (info.AssemblyName.Name?.Contains("Microsoft.Management.Services.LocationService.RestLocationServiceProxy") is not true)

@@ -1,4 +1,7 @@
-﻿namespace Sandbox103.BuildDrops;
+﻿using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
+
+namespace Sandbox103.BuildDrops;
 
 public class BuildDrop
 {
@@ -14,7 +17,10 @@ public class BuildDrop
         };
 
     private readonly string _path;
-    private readonly string _retailAmd64;
+    private readonly string _projectsRoot;
+    private readonly DirectoryInfo _root;
+    private readonly DirectoryInfoWrapper _wrapper;
+    private List<BuildDropProject>? _projects;
 
     public BuildDrop(string path)
     {
@@ -29,19 +35,28 @@ public class BuildDrop
 
         string retailAmd64 = System.IO.Path.Join(path, "retail-amd64");
 
-        if (!Directory.Exists(retailAmd64))
+        //_projectsRoot = Directory.Exists(retailAmd64) ? retailAmd64 : path;
+        _projectsRoot = path;
+
+        _root = new DirectoryInfo(path);
+
+        if (!_root.Exists)
         {
-            throw new DirectoryNotFoundException("Unable to locate 'retail-amd64' directory under the build drop root.");
+            throw new DirectoryNotFoundException(path);
         }
 
-        _retailAmd64 = retailAmd64;
+        _wrapper = new DirectoryInfoWrapper(_root);
     }
 
     public string Path => _path;
 
+    public DirectoryInfo Root => _root;
+
+    public IReadOnlyList<BuildDropProject> Projects => _projects ??= EnumerateProjects().ToList();
+
     public IEnumerable<BuildDropProject> EnumerateProjects()
     {
-        foreach (string projectDir in Directory.EnumerateDirectories(_retailAmd64))
+        foreach (string projectDir in Directory.EnumerateDirectories(_projectsRoot))
         {
             var projectDirInfo = new DirectoryInfo(projectDir);
             string projectName = projectDirInfo.Name;
@@ -78,7 +93,32 @@ public class BuildDrop
                 continue;
             }
 
-            yield return new BuildDropProject { ProjectPath = projectDir, BinaryPath = binaryPath };
+            yield return new BuildDropProject
+            {
+                ProjectPath = projectDir,
+                BinaryPath = binaryPath,
+                RelativeProjectPath = System.IO.Path.GetRelativePath(_path, projectDir),
+                RelativeBinaryPath = System.IO.Path.GetRelativePath(_path, binaryPath),
+            };
         }
+    }
+
+    public IEnumerable<string> Glob(string pattern)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(pattern);
+
+        return Glob(new Matcher().AddInclude(pattern));
+    }
+
+    public IEnumerable<string> Glob(Matcher glob)
+    {
+        PatternMatchingResult searchResult = glob.Execute(_wrapper);
+
+        if (!searchResult.HasMatches)
+        {
+            return Array.Empty<string>();
+        }
+
+        return searchResult.Files.Select(item => System.IO.Path.Join(_root.FullName, item.Path));
     }
 }

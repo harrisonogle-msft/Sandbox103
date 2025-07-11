@@ -73,6 +73,9 @@ public class LocalGitRepo
         }
 
         string searchPattern = fileExtension.StartsWith('.') ? $"*{fileExtension}" : $"*.{fileExtension}";
+        //string searchPattern = "RestLocationServiceProxy.csproj";
+        //string searchPattern = "Rest*.csproj";
+        //string searchPattern = "Rest*V2.csproj";
 
         IEnumerable<string> results = Directory.EnumerateFiles(path, searchPattern, SearchOption.AllDirectories);
 
