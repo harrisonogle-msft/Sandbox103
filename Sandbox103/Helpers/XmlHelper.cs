@@ -93,20 +93,14 @@ public static class XmlHelper
 
         const string ToolsVersion = nameof(ToolsVersion);
         const string DefaultTargets = nameof(DefaultTargets);
-
-        static void RemoveAttributeIfExists(XmlElement el, string attr)
-        {
-            if (!string.IsNullOrEmpty(el.GetAttribute(attr)))
-            {
-                el.SetAttribute(attr, null);
-            }
-        }
+        const string xmlns = nameof(xmlns);
 
         XmlElement projectEl = project.SelectSingleNode("//Project") as XmlElement ?? throw new InvalidOperationException("Project element is missing.");
         if (removeLegacyAttributes)
         {
-            RemoveAttributeIfExists(projectEl, ToolsVersion);
-            RemoveAttributeIfExists(projectEl, DefaultTargets);
+            projectEl.RemoveAttribute(ToolsVersion);
+            projectEl.RemoveAttribute(DefaultTargets);
+            projectEl.RemoveAttribute(xmlns);
         }
         projectEl.SetAttribute("Sdk", sdk);
     }
@@ -189,15 +183,11 @@ public static class XmlHelper
 
         if (insertItemGroup)
         {
-            XmlNode? insertAfter = null;
-            for (XmlNode? child = project.FirstChild; child is not null; child = child.NextSibling)
-            {
-                if (child.Name == "PropertyGroup")
-                {
-                    insertAfter = child;
-                    break;
-                }
-            }
+            XmlNode? insertAfter =
+                project.SelectSingleNode("PropertyGroup[AssemblyName]") ??
+                project.SelectSingleNode("PropertyGroup[TargetFramework]") ??
+                project.SelectSingleNode("PropertyGroup[TargetFrameworks]") ??
+                project.SelectSingleNode("PropertyGroup");
 
             if (insertAfter is not null)
             {
