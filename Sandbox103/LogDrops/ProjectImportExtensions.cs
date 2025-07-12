@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using System.Xml;
 using System.Xml.XPath;
@@ -19,6 +20,37 @@ public static class ProjectImportExtensions
     {
         ArgumentNullException.ThrowIfNull(projectImport);
 
+        ConcurrentDictionary<string, bool> cache = Caching.ContainsReferenceCache;
+
+        string key = projectImport.RelativePath;
+        string shortKey = Path.GetFileName(key);
+
+        if (cache.TryGetValue(key, out bool cachedValue))
+        {
+            Trace.WriteLine($"**** ContainsReferenceItem CACHE HIT (value: {cachedValue}) for \"{shortKey}\"");
+            return cachedValue;
+        }
+
+        bool ret = ContainsReferenceItemCore(projectImport);
+        Trace.WriteLine($"**** ContainsReferenceItem CACHE MISS (value: {ret}) for \"{shortKey}\"");
+
+        while (!cache.TryAdd(key, ret))
+        {
+            if (cache.TryGetValue(key, out bool newlyCachedValue))
+            {
+                if (ret != newlyCachedValue)
+                {
+                    throw new InvalidOperationException("Unexpected error: cache inconsistency + race condition.");
+                }
+                break;
+            }
+        }
+
+        return ret;
+    }
+
+    private static bool ContainsReferenceItemCore(ProjectImport projectImport)
+    {
         string? fileContent = projectImport.ProjectFileContent;
 
         if (fileContent is null)

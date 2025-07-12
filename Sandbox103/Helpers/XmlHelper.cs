@@ -3,6 +3,7 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using Sandbox103.BuildDrops;
 using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Security;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -16,6 +17,44 @@ public static class XmlHelper
     private const string DefaultTargets = nameof(DefaultTargets);
     private const string xmlns = nameof(xmlns);
     private const string Sdk = nameof(Sdk);
+
+    public static bool TryParsePrivateTargets(
+    XmlDocument document,
+    string fileName,
+    [NotNullWhen(true)] out string? packageId,
+    [NotNullWhen(true)] out string? packageVersion)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrEmpty(fileName);
+
+        const string PrivateTargetsSuffix = ".private.targets";
+        const string DependencyToolImportedPrefix = "IMPORTED_Pkg";
+
+        if (!fileName.EndsWith(PrivateTargetsSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("File is not a '.private.targets' file.", nameof(fileName));
+        }
+
+        string packageName = fileName.Substring(0, fileName.Length - PrivateTargetsSuffix.Length);
+        string propertyName = $"{DependencyToolImportedPrefix}{packageName.Replace(".", "_")}";
+
+        if (!TryGetProject(document, out XmlElement? project))
+        {
+            goto Failed;
+        }
+
+        if (GetProperty(document, propertyName) is string propertyValue)
+        {
+            packageId = packageName;
+            packageVersion = propertyValue;
+            return true;
+        }
+
+    Failed:
+        packageId = null;
+        packageVersion = null;
+        return false;
+    }
 
     public static string? GetProperty(XmlDocument document, string name)
     {
@@ -225,8 +264,25 @@ public static class XmlHelper
 
     public static XmlElement GetProject(XmlDocument document)
     {
-        return document.SelectSingleNode("//Project") as XmlElement ??
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (TryGetProject(document, out XmlElement? project))
+        {
+            return project;
+        }
+        else
+        {
             throw new InvalidOperationException("Project element is missing.");
+        }
+    }
+
+    public static bool TryGetProject(XmlDocument document, [NotNullWhen(true)] out XmlElement? project)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        project = document.SelectSingleNode("Project") as XmlElement;
+
+        return project is not null;
     }
 
     public static void RemoveLegacyProjectAttributes(XmlDocument document)
