@@ -83,16 +83,28 @@ foreach (ProjectFile projectFile in all)
             continue;
         }
 
-        using var writer = new XmlTextWriter(outputStream, Encoding.UTF8)
-        {
-            Namespaces = false,
-            Formatting = Formatting.Indented,
-            Indentation = 2,
-        };
+        using var writer = new ProjectFileXmlWriter(outputStream);
 
         RemoveLegacyPackageImports(projectFile, project);
         AddPackageReferences(conversion, projectFile, project, packagesProps);
-        XmlHelper.ChangeProjectType(project, "Corext.Before;Microsoft.NET.Sdk;Corext.After");
+
+        XmlHelper.RemoveLegacyProjectAttributes(project);
+        XmlHelper.RemoveSdkElements(project);
+        XmlHelper.AddSdkElement(project, "Corext.Before", [("Condition", "'$(EnableCorextSdk)' == 'true'")]);
+        XmlHelper.AddSdkElement(project, "Microsoft.NET.Sdk");
+        XmlHelper.AddSdkElement(project, "Corext.After", [("Condition", "'$(EnableCorextSdk)' == 'true'")]);
+        XmlHelper.RemoveProjectImports(project, static name => name?.EndsWith("Microsoft.CSharp.targets", StringComparison.OrdinalIgnoreCase) is true);
+        XmlHelper.RemoveProjectImports(project, static name => name?.EndsWith("\\Environment.props", StringComparison.OrdinalIgnoreCase) is true);
+        XmlHelper.RemoveProjectImports(project, static name => string.Equals(name, "$(EnvironmentConfig)", StringComparison.OrdinalIgnoreCase));
+        if (XmlHelper.GetProperty(project, "TargetFrameworks") is null &&
+            XmlHelper.GetProperty(project, "TargetFramework") is null)
+        {
+            string? tfm = LocalAssembly.GetTargetFrameworkMoniker(projectFile.BinaryPath);
+            if (!string.IsNullOrEmpty(tfm))
+            {
+                XmlHelper.SetProperty(project, "TargetFramework", tfm);
+            }
+        }
 
         project.Save(writer);
         outputStream.SetLength(outputStream.Position);
@@ -104,9 +116,18 @@ foreach (ProjectFile projectFile in all)
 }
 
 using var packagesPropsFileStream = File.Open(conversion.PackagesPropsFile, FileMode.Open, FileAccess.Write, FileShare.None);
-using var packagesPropsTextWriter = new StreamWriter(packagesPropsFileStream, Encoding.UTF8);
-using var packagesPropsXmlWriter = new XmlTextWriter(packagesPropsTextWriter) { Namespaces = false, Formatting = Formatting.Indented, Indentation = 2 };
+using var packagesPropsXmlWriter = new ProjectFileXmlWriter(packagesPropsFileStream);
 packagesProps.Save(packagesPropsXmlWriter);
+
+using var srcDirectoryBuildPropsStream = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(conversion.SrcDirectoryBuildPropsFile)));
+using var srcDirectoryBuildPropsTextReader = new StreamReader(srcDirectoryBuildPropsStream, Encoding.UTF8);
+using var srcDirectoryBuildPropsXmlReader = new XmlTextReader(srcDirectoryBuildPropsTextReader);
+using var srcDirectoryBuildPropsOutputStream = File.OpenWrite(conversion.SrcDirectoryBuildPropsFile);
+using var srcDirectoryBuildPropsXmlWriter = new ProjectFileXmlWriter(srcDirectoryBuildPropsOutputStream);
+var srcDirectoryBuildProps = new XmlDocument();
+srcDirectoryBuildProps.Load(srcDirectoryBuildPropsXmlReader);
+XmlHelper.SetProperty(srcDirectoryBuildProps, "EnableCorextSdk", "true");
+srcDirectoryBuildProps.Save(srcDirectoryBuildPropsXmlWriter);
 
 Console.WriteLine("\nDone.");
 

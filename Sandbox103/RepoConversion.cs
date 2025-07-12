@@ -29,6 +29,7 @@ public class RepoConversion
     private readonly LogDrop _logDrop;
     private readonly BuildDrop _buildDrop;
     private string? _packagesPropsFile;
+    private string? _srcDirectoryBuildPropsFile;
     private IReadOnlyDictionary<BinaryReference, ProjectFile>? _projectReferences;
 
     private List<ProjectFile>? _projectFiles;
@@ -54,6 +55,8 @@ public class RepoConversion
     public BuildDrop BuildDrop => _buildDrop;
 
     public string PackagesPropsFile => _packagesPropsFile ??= GetOrCreatePackagesPropsFile();
+
+    public string SrcDirectoryBuildPropsFile => _srcDirectoryBuildPropsFile ??= GetOrCreateSrcDirectoryBuildPropsFile();
 
     public IReadOnlyList<ProjectFile> ProjectFiles => _projectFiles ??= GetProjectFiles(_repo, _logDrop, _buildDrop);
 
@@ -231,6 +234,24 @@ public class RepoConversion
                 """);
         }
         return packagesPropsFile;
+    }
+
+    private string GetOrCreateSrcDirectoryBuildPropsFile()
+    {
+        string file = Path.Join(_repo.SrcRoot, "directory.build.props");
+        if (!File.Exists(file))
+        {
+            Trace.WriteLine($"Creating directory.build.props file: {file}");
+            File.WriteAllText(file, """
+                <Project>
+                  <!-- Import the parent directory.build.props file. -->
+                  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" Condition="Exists($([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../')))"/>
+                  <PropertyGroup>
+                  </PropertyGroup>
+                </Project>
+                """);
+        }
+        return file;
     }
 
     private IReadOnlyDictionary<BinaryReference, ProjectFile> GetProjectReferences()

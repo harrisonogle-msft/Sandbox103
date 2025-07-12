@@ -224,7 +224,6 @@ public class ProjectImportGraphBuilder
                 IDictionary<string, string>? globalProperties = args.GlobalProperties as IDictionary<string, string>;
 
                 var temp = properties?.OrderBy(kvp => kvp.Key).ToArray();
-                Debugger.Break();
 
                 string? GetPropertyValue(string propertyName, object? state)
                 {

@@ -1,6 +1,7 @@
 ﻿using Sandbox103.BuildDrops;
 using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Security;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.XPath;
@@ -9,7 +10,59 @@ namespace Sandbox103.Helpers;
 
 public static class XmlHelper
 {
-    private static readonly Regex s_itemGroupLabelRegex = new Regex(@"[\s\w_-]+", RegexOptions.Compiled);
+    private const string ToolsVersion = nameof(ToolsVersion);
+    private const string DefaultTargets = nameof(DefaultTargets);
+    private const string xmlns = nameof(xmlns);
+    private const string Sdk = nameof(Sdk);
+
+    public static string? GetProperty(XmlDocument document, string name)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ThrowIfInvalidTag(name);
+
+        XmlElement project = GetProject(document);
+
+        if (project.SelectSingleNode($"PropertyGroup/{name}") is XmlElement property)
+        {
+            return property.InnerText;
+        }
+
+        return null;
+    }
+
+    public static void SetProperty(XmlDocument document, string name, string value)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(value);
+        ThrowIfInvalidTag(name);
+        ThrowIfInvalidText(value);
+
+        const string PropertyGroup = nameof(PropertyGroup);
+
+        XmlElement project = GetProject(document);
+
+        if (project.SelectSingleNode($"PropertyGroup/{name}") is XmlElement existingProperty)
+        {
+            existingProperty.InnerText = value;
+            return;
+        }
+
+        XmlElement property = document.CreateElement(name);
+        property.InnerText = value;
+
+        if (project.SelectSingleNode(PropertyGroup) is XmlElement existingPropertyGroup)
+        {
+            existingPropertyGroup.AppendChild(property);
+        }
+        else
+        {
+            XmlElement propertyGroup = document.CreateElement(PropertyGroup);
+            propertyGroup.AppendChild(property);
+            project.AppendChild(propertyGroup);
+        }
+    }
 
     public static int RemoveProjectImports(XmlReader reader, XmlWriter writer, Predicate<string> predicate)
     {
@@ -77,32 +130,174 @@ public static class XmlHelper
         return results.Count;
     }
 
-    public static bool IsSdkStyleProject(XmlDocument project)
+    public static bool IsSdkStyleProject(XmlDocument document)
     {
-        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(document);
 
-        XmlElement projectEl = project.SelectSingleNode("//Project") as XmlElement ?? throw new InvalidOperationException("Project element is missing.");
+        XmlElement project = GetProject(document);
 
-        return !string.IsNullOrEmpty(projectEl.GetAttribute("Sdk"));
+        if (!string.IsNullOrEmpty(project.GetAttribute(Sdk)))
+        {
+            return true;
+        }
+
+        if (FirstChild(project, static child => child.Name == Sdk) is not null)
+        {
+            return true;
+        }
+
+        return false;
     }
 
-    public static void ChangeProjectType(XmlDocument project, string sdk, bool removeLegacyAttributes = true)
+    //public static void ChangeProjectType(XmlDocument project, string sdk, bool removeLegacyAttributes = true)
+    //{
+    //    ArgumentNullException.ThrowIfNull(project);
+    //    ArgumentException.ThrowIfNullOrEmpty(sdk);
+
+    //    const string ToolsVersion = nameof(ToolsVersion);
+    //    const string DefaultTargets = nameof(DefaultTargets);
+    //    const string xmlns = nameof(xmlns);
+    //    const string Sdk = nameof(Sdk);
+
+    //    XmlElement projectEl = project.SelectSingleNode("//Project") as XmlElement ?? throw new InvalidOperationException("Project element is missing.");
+    //    if (removeLegacyAttributes)
+    //    {
+    //        projectEl.RemoveAttribute(ToolsVersion);
+    //        projectEl.RemoveAttribute(DefaultTargets);
+    //        projectEl.RemoveAttribute(xmlns);
+    //    }
+    //    projectEl.RemoveAttribute(Sdk);
+
+    //    for (XmlNode? child = projectEl.FirstChild; child is not null; child = child.NextSibling)
+    //    {
+    //        if (child.Name == Sdk)
+    //        {
+    //            projectEl.RemoveChild(child);
+    //        }
+    //    }
+
+    //    //projectEl.SetAttribute("Sdk", sdk);
+    //}
+
+    public static XmlElement GetProject(XmlDocument document)
     {
-        ArgumentNullException.ThrowIfNull(project);
-        ArgumentException.ThrowIfNullOrEmpty(sdk);
+        return document.SelectSingleNode("//Project") as XmlElement ??
+            throw new InvalidOperationException("Project element is missing.");
+    }
 
-        const string ToolsVersion = nameof(ToolsVersion);
-        const string DefaultTargets = nameof(DefaultTargets);
-        const string xmlns = nameof(xmlns);
+    public static void RemoveLegacyProjectAttributes(XmlDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
 
-        XmlElement projectEl = project.SelectSingleNode("//Project") as XmlElement ?? throw new InvalidOperationException("Project element is missing.");
-        if (removeLegacyAttributes)
+        XmlElement project = GetProject(document);
+
+        project.RemoveAttribute(ToolsVersion);
+        project.RemoveAttribute(DefaultTargets);
+        project.RemoveAttribute(xmlns);
+    }
+
+    public static void RemoveSdkElements(XmlDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        XmlElement project = GetProject(document);
+
+        project.RemoveAttribute(Sdk);
+
+        // NOTE: Deletion invalidates the `NextSibling` pointers.
+        // So we either need to iterate multiple times, or allocate.
+
+        while (FirstChild(project, static child => child.Name == Sdk) is XmlNode child)
         {
-            projectEl.RemoveAttribute(ToolsVersion);
-            projectEl.RemoveAttribute(DefaultTargets);
-            projectEl.RemoveAttribute(xmlns);
+            project.RemoveChild(child);
         }
-        projectEl.SetAttribute("Sdk", sdk);
+    }
+
+    public static XmlNode? FirstChild(this XmlElement el, Predicate<XmlNode> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(el);
+
+        for (XmlNode? child = el.FirstChild; child is not null; child = child.NextSibling)
+        {
+            if (predicate.Invoke(child))
+            {
+                return child;
+            }
+        }
+        return null;
+    }
+
+    public static XmlNode? LastChild(this XmlElement el, Predicate<XmlNode> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(el);
+
+        if (el.ChildNodes is XmlNodeList childNodes)
+        {
+            for (int i = childNodes.Count - 1; i >= 0; i--)
+            {
+                if (childNodes[i] is XmlNode child && predicate.Invoke(child))
+                {
+                    return child;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static void AddSdkElement(XmlDocument document, string name, IEnumerable<ValueTuple<string, string>>? attributes)
+    {
+        AddSdkElement(
+            document,
+            name,
+            attributes?.Select(static attr => new KeyValuePair<string, string>(attr.Item1, attr.Item2)));
+    }
+
+    public static void AddSdkElement(XmlDocument document, string name, IEnumerable<KeyValuePair<string, string>>? attributes = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+
+        XmlElement project = GetProject(document);
+
+        XmlElement sdk = CreateSdkElement(document, name, attributes);
+
+        if (LastChild(project, static child => child.Name == Sdk) is XmlElement child)
+        {
+            project.InsertAfter(sdk, child);
+        }
+        else
+        {
+            project.PrependChild(sdk);
+        }
+    }
+
+    public static XmlElement CreateSdkElement(XmlDocument document, string name, IEnumerable<KeyValuePair<string, string>>? attributes = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+
+        ThrowIfInvalidTag(name);
+
+        XmlElement sdk = document.CreateElement(Sdk);
+        sdk.SetAttribute("Name", name);
+
+        if (attributes is not null)
+        {
+            foreach ((string key, string value) in attributes)
+            {
+                if (key == "Name" && value != name)
+                {
+                    throw new InvalidOperationException($"Duplicate 'Name' attribute is inconsistent with the 'name' parameter. ('{value}' != '{name}')");
+                }
+
+                ThrowIfInvalidAttributeName(key);
+                ThrowIfInvalidAttributeValue(value);
+
+                sdk.SetAttribute(key, value);
+            }
+        }
+
+        return sdk;
     }
 
     public static int AddPackageReferencesToProject(
@@ -117,12 +312,16 @@ public static class XmlHelper
         ArgumentNullException.ThrowIfNull(packageReferences);
         ArgumentException.ThrowIfNullOrEmpty(packageAttributeName);
 
+        ThrowIfInvalidAttributeName(packageAttributeName);
+
+        if (versionAttributeName is not null)
+        {
+            ThrowIfInvalidAttributeName(versionAttributeName);
+        }
+
         if (itemGroupLabel is not null)
         {
-            if (!s_itemGroupLabelRegex.IsMatch(itemGroupLabel))
-            {
-                throw new ArgumentException($"Invalid ItemGroup label: {itemGroupLabel}", nameof(itemGroupLabel));
-            }
+            ThrowIfInvalidTag(itemGroupLabel);
         }
 
         using var it = packageReferences.GetEnumerator();
@@ -151,6 +350,9 @@ public static class XmlHelper
             {
                 foreach ((string key, string value) in itemGroupAttributes)
                 {
+                    ThrowIfInvalidAttributeName(key);
+                    ThrowIfInvalidAttributeValue(value);
+
                     itemGroupEl.SetAttribute(key, value);
                 }
             }
@@ -166,6 +368,9 @@ public static class XmlHelper
         do
         {
             (string name, string version) = it.Current;
+
+            ThrowIfInvalidAttributeValue(name);
+            ThrowIfInvalidAttributeValue(version);
 
             if (!existingPackageReferences.ContainsKey(name))
             {
@@ -305,5 +510,37 @@ public static class XmlHelper
         }
 
         return results;
+    }
+
+    private static void ThrowIfInvalidAttributeName(string? attributeName)
+    {
+        if (!SecurityElement.IsValidAttributeName(attributeName))
+        {
+            throw new InvalidOperationException($"Invalid attribute name: '{attributeName}'");
+        }
+    }
+
+    private static void ThrowIfInvalidAttributeValue(string? attributeValue)
+    {
+        if (!SecurityElement.IsValidAttributeValue(attributeValue))
+        {
+            throw new InvalidOperationException($"Invalid attribute value: '{attributeValue}'");
+        }
+    }
+
+    private static void ThrowIfInvalidText(string? text)
+    {
+        if (!SecurityElement.IsValidText(text))
+        {
+            throw new InvalidOperationException($"Invalid text: '{text}'");
+        }
+    }
+
+    private static void ThrowIfInvalidTag(string? tag)
+    {
+        if (!SecurityElement.IsValidTag(tag))
+        {
+            throw new InvalidOperationException($"Invalid tag: '{tag}'");
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Sandbox103.BuildDrops;
 using Sandbox103.Helpers;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace Sandbox103.Extensions;
@@ -30,19 +31,27 @@ public static class LocalAssemblyExtensions
 
         if (AssemblyHelper.IsIntuneAssembly(assemblyName))
         {
-            if (localAssembly.FileVersion is not string fileVersion)
+            if (localAssembly.FileVersion is string fileVersion)
             {
-                throw new ArgumentException("Missing file version.", nameof(localAssembly));
+                return fileVersion;
             }
-            return fileVersion;
+            else
+            {
+                if (FileVersionInfo.GetVersionInfo(localAssembly.Path).FileVersion is string fileVersionFromPath)
+                {
+                    return fileVersionFromPath;
+                }
+
+                // This can happen in unit test projects, e.g. out/retail-amd64-unittest/**/*.*
+                Console.WriteLine($"[!] Missing file version from Intune binary: {localAssembly.Path}");
+            }
         }
-        else
+
+        if (assemblyName.Version is not Version version)
         {
-            if (assemblyName.Version is not Version version)
-            {
-                throw new ArgumentException("Missing assembly version.", nameof(assemblyName));
-            }
-            return version.ToString();
+            throw new ArgumentException("Missing assembly version.", nameof(assemblyName));
         }
+
+        return version.ToString();
     }
 }

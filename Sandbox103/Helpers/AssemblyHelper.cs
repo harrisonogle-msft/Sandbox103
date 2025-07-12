@@ -59,20 +59,28 @@ public static class AssemblyHelper
 
             if (visited.Add(assemblyPath))
             {
-                using (var streamReader = new StreamReader(assemblyPath))
-                using (var portableExecutableReader = new PEReader(streamReader.BaseStream))
+                var seed = LocalAssembly.FromPath(assemblyPath);
+
+                foreach (LocalAssembly dependency in EnumerateDirectDependencies(assemblyPath))
                 {
-                    MetadataReader metadataReader = portableExecutableReader.GetMetadataReader();
-                    if (metadataReader.IsAssembly)
-                    {
-                        var seed = new LocalAssembly(assemblyPath, metadataReader.GetAssemblyDefinition().GetAssemblyName(), FileVersionInfo.GetVersionInfo(assemblyPath).FileVersion);
-                        foreach (LocalAssembly dependency in EnumerateDirectDependencies(assemblyPath))
-                        {
-                            callback?.Invoke(seed, dependency);
-                            queue.Enqueue(dependency);
-                        }
-                    }
+                    callback?.Invoke(seed, dependency);
+                    queue.Enqueue(dependency);
                 }
+
+                //using (var streamReader = new StreamReader(assemblyPath))
+                //using (var portableExecutableReader = new PEReader(streamReader.BaseStream))
+                //{
+                //    MetadataReader metadataReader = portableExecutableReader.GetMetadataReader();
+                //    if (metadataReader.IsAssembly)
+                //    {
+                //        var seed = new LocalAssembly(assemblyPath, metadataReader.GetAssemblyDefinition().GetAssemblyName(), FileVersionInfo.GetVersionInfo(assemblyPath).FileVersion);
+                //        foreach (LocalAssembly dependency in EnumerateDirectDependencies(assemblyPath))
+                //        {
+                //            callback?.Invoke(seed, dependency);
+                //            queue.Enqueue(dependency);
+                //        }
+                //    }
+                //}
             }
         }
 
@@ -108,16 +116,8 @@ public static class AssemblyHelper
 
         foreach (string dependencyPath in EnumerateDirectDependencyPaths(assemblyPath))
         {
-            using (var streamReader = new StreamReader(dependencyPath))
-            using (var portableExecutableReader = new PEReader(streamReader.BaseStream))
-            {
-                MetadataReader metadataReader = portableExecutableReader.GetMetadataReader();
-                if (metadataReader.IsAssembly)
-                {
-                    var dependency = new LocalAssembly(dependencyPath, metadataReader.GetAssemblyDefinition().GetAssemblyName(), FileVersionInfo.GetVersionInfo(dependencyPath).FileVersion);
-                    yield return dependency;
-                }
-            }
+            var dependency = LocalAssembly.FromPath(dependencyPath);
+            yield return dependency;
         }
     }
 
