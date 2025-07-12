@@ -11,6 +11,8 @@ public static class Constants
     private static FileInfo? s_binLog;
     private static DirectoryInfo? s_repoDirectory;
 
+    public const string EnableCorextProjectSdk = nameof(EnableCorextProjectSdk);
+
     public static DirectoryInfo BinDirectory => s_binDirectory ??= GetBinDirectory();
 
     public static DirectoryInfo AssetsDirectory => s_assetsDirectory ??= GetAssetsDirectory();

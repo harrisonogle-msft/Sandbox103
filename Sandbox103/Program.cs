@@ -92,9 +92,9 @@ foreach (ProjectFile projectFile in projectFiles)
 
         XmlHelper.RemoveLegacyProjectAttributes(project);
         XmlHelper.RemoveSdkElements(project);
-        XmlHelper.AddSdkElement(project, "Corext.Before", [("Condition", "'$(EnableCorextProjectSdk)' == 'true'")]);
+        XmlHelper.AddSdkElement(project, "Corext.Before", [("Condition", $"'$({Constants.EnableCorextProjectSdk})' == 'true'")]);
         XmlHelper.AddSdkElement(project, "Microsoft.NET.Sdk");
-        XmlHelper.AddSdkElement(project, "Corext.After", [("Condition", "'$(EnableCorextProjectSdk)' == 'true'")]);
+        XmlHelper.AddSdkElement(project, "Corext.After", [("Condition", $"'$({Constants.EnableCorextProjectSdk})' == 'true'")]);
         XmlHelper.RemoveProjectImports(project, static name => name?.EndsWith("Microsoft.CSharp.targets", StringComparison.OrdinalIgnoreCase) is true);
         XmlHelper.RemoveProjectImports(project, static name => name?.EndsWith("\\Environment.props", StringComparison.OrdinalIgnoreCase) is true);
         XmlHelper.RemoveProjectImports(project, static name => string.Equals(name, "$(EnvironmentConfig)", StringComparison.OrdinalIgnoreCase));
@@ -129,10 +129,19 @@ using var srcDirectoryBuildPropsOutputStream = File.OpenWrite(conversion.SrcDire
 using var srcDirectoryBuildPropsXmlWriter = new ProjectFileXmlWriter(srcDirectoryBuildPropsOutputStream);
 var srcDirectoryBuildProps = new XmlDocument();
 srcDirectoryBuildProps.Load(srcDirectoryBuildPropsXmlReader);
-XmlHelper.SetProperty(srcDirectoryBuildProps, "EnableCorextProjectSdk", "true");
+XmlHelper.SetProperty(srcDirectoryBuildProps, Constants.EnableCorextProjectSdk, "true");
 srcDirectoryBuildProps.Save(srcDirectoryBuildPropsXmlWriter);
 
 Console.WriteLine("\nDone.");
+
+static void AddPackageReferencesV2(RepoConversion conversion, ProjectFile projectFile, XmlDocument project, XmlDocument packagesProps)
+{
+    ArgumentNullException.ThrowIfNull(conversion);
+    ArgumentNullException.ThrowIfNull(projectFile);
+    ArgumentNullException.ThrowIfNull(project);
+    ArgumentNullException.ThrowIfNull(packagesProps);
+
+}
 
 static void AddPackageReferences(RepoConversion conversion, ProjectFile projectFile, XmlDocument project, XmlDocument packagesProps)
 {
