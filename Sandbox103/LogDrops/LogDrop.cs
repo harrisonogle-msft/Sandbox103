@@ -47,6 +47,6 @@ public class LogDrop
             return Array.Empty<string>();
         }
 
-        return searchResult.Files.Select(item => System.IO.Path.Join(_root.FullName, item.Path));
+        return searchResult.Files.Select(item => PathHelper.NormalizePath(System.IO.Path.Join(_root.FullName, item.Path)));
     }
 }

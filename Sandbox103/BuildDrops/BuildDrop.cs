@@ -50,8 +50,6 @@ public class BuildDrop
 
     public string Path => _path;
 
-    public DirectoryInfo Root => _root;
-
     public IReadOnlyList<BuildDropProject> Projects => _projects ??= EnumerateProjects().ToList();
 
     public IEnumerable<BuildDropProject> EnumerateProjects()

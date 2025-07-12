@@ -9,6 +9,8 @@ using Sandbox103.Repos;
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text;
 
 namespace Sandbox103;
 
@@ -57,7 +59,7 @@ public class RepoConversion
 
     public IReadOnlyDictionary<BinaryReference, ProjectFile> ProjectReferences => _projectReferences ??= GetProjectReferences();
 
-    public static List<ProjectFile> GetProjectFiles(LocalGitRepo repo, LogDrop logDrop, BuildDrop buildDrop)
+    public List<ProjectFile> GetProjectFiles(LocalGitRepo repo, LogDrop logDrop, BuildDrop buildDrop)
     {
         ArgumentNullException.ThrowIfNull(repo);
         ArgumentNullException.ThrowIfNull(logDrop);
@@ -67,13 +69,15 @@ public class RepoConversion
 
         var projectFiles = new List<ProjectFile>();
 
-        foreach (string csproj in repo.EnumerateProjectFiles(fileExtension: ".csproj", relativePaths: true))
+        foreach (string relativeCsprojPath in repo.EnumerateProjectFiles(fileExtension: ".csproj", relativePaths: true))
         {
-            string csprojDir = Path.GetDirectoryName(csproj) ?? throw new DirectoryNotFoundException($"Unable to get containing directory of csproj file '{csproj}'.");
-            var glob = new Matcher();
-            glob.AddInclude(Path.Join("**", csprojDir, "**", "*.binlog"));
-
             string binLogPath;
+
+            // TODO: Consider reading all binlogs first and attempting to find the .csproj in the local repo using information from the binlog.
+            // TODO: Consider writing a method to determine the root project of a binlog. (is it sufficient to assume it's the first built project in the binlog?)
+            var glob = new Matcher(StringComparison.OrdinalIgnoreCase);
+            string csprojDir = Path.GetDirectoryName(relativeCsprojPath) ?? throw new DirectoryNotFoundException($"Unable to get containing directory of csproj file '{relativeCsprojPath}'.");
+            glob.AddInclude(Path.Join("**", csprojDir, "**", "*.binlog"));
 
             using (var it = logDrop.Glob(glob).GetEnumerator())
             {
@@ -92,7 +96,7 @@ public class RepoConversion
                 }
             }
 
-            IDictionary<string, string> properties = GetProperties(binLogPath, Path.GetFileName(csproj), ["TargetPath", "TargetDir", "OutDir"]);
+            IDictionary<string, string> properties = GetProperties(binLogPath, Path.GetFileName(relativeCsprojPath), ["TargetPath", "TargetDir", "OutDir"]);
             if (!properties.TryGetValue("TargetPath", out string? targetPath) ||
                 !properties.TryGetValue("TargetDir", out string? targetDir) ||
                 !properties.TryGetValue("OutDir", out string? outDir))
@@ -130,12 +134,19 @@ public class RepoConversion
 
             if (string.IsNullOrEmpty(binaryPath))
             {
-                throw new InvalidOperationException($"Unexpected error: binary path not found for project '{csproj}'.");
+                throw new InvalidOperationException($"Unexpected error: binary path not found for project '{relativeCsprojPath}'.");
             }
 
-            Console.WriteLine($"Found binlog: {binLogPath}");
-            Console.WriteLine($"Found binary: {binaryPath}");
-            projectFiles.Add(new ProjectFile(Path.Join(repo.BaseDir, csproj), binLogPath, binaryPath));
+            string relativeBinLogPath = Path.GetRelativePath(LogDrop.Path, binLogPath);
+            string relativeBinaryPath = Path.GetRelativePath(BuildDrop.Path, binaryPath);
+
+            var sb = new StringBuilder();
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Project: {relativeCsprojPath}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  binlog: {relativeBinLogPath}");
+            sb.Append/**/(CultureInfo.InvariantCulture, $"  binary: {relativeBinaryPath}");
+            Console.WriteLine(sb.ToString());
+
+            projectFiles.Add(new ProjectFile(Path.Join(repo.Path, relativeCsprojPath), binLogPath, binaryPath));
         }
 
         Trace.WriteLine($"Retrieved project files from local git repo. ({Stopwatch.GetElapsedTime(t0)})");
@@ -206,7 +217,7 @@ public class RepoConversion
         string? packagesPropsFile = Path.Join(_repo.SrcRoot, "packages.props");
         if (!File.Exists(packagesPropsFile))
         {
-            packagesPropsFile = Directory.EnumerateFiles(_repo.BaseDir, "packages.props", SearchOption.AllDirectories).FirstOrDefault();
+            packagesPropsFile = Directory.EnumerateFiles(_repo.Path, "packages.props", SearchOption.AllDirectories).FirstOrDefault();
         }
         if (packagesPropsFile is null)
         {

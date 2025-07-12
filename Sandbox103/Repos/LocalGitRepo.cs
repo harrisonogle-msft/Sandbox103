@@ -41,7 +41,7 @@ public class LocalGitRepo
             Directory.EnumerateDirectories(_root, "src", SearchOption.AllDirectories).FirstOrDefault() ??
             throw new DirectoryNotFoundException("Unable to find the 'src' directory under the repository root.");
 
-        string corextConfigPath = Path.Join(_root, "build", "corext", "corext.config");
+        string corextConfigPath = System.IO.Path.Join(_root, "build", "corext", "corext.config");
         if (!File.Exists(corextConfigPath))
         {
             corextConfigPath = Directory.EnumerateFiles(_root, "corext.config", s_corextConfigEnumerationOptions).SingleOrDefault() ??
@@ -50,7 +50,7 @@ public class LocalGitRepo
         _corextConfig = corextConfigPath;
     }
 
-    public string BaseDir => _root;
+    public string Path => _root;
 
     public string SrcRoot => _src;
 
@@ -68,11 +68,11 @@ public class LocalGitRepo
         }
         else
         {
-            path = Path.Join(_root, relativePath);
+            path = System.IO.Path.Join(_root, relativePath);
 
             if (File.Exists(path))
             {
-                if (string.Equals(Path.GetExtension(path), fileExtension, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(System.IO.Path.GetExtension(path), fileExtension, StringComparison.OrdinalIgnoreCase))
                 {
                     // If a path to a single project file was given, return it.
                     return [path];
@@ -101,7 +101,7 @@ public class LocalGitRepo
         {
             return results.Select(path =>
             {
-                return Path.GetRelativePath(_root, path);
+                return System.IO.Path.GetRelativePath(_root, path);
             });
         }
     }

@@ -1,6 +1,4 @@
-﻿using Sandbox103.BuildDrops;
-
-namespace Sandbox103;
+﻿namespace Sandbox103;
 
 public class ProjectFile
 {
