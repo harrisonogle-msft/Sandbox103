@@ -20,6 +20,9 @@ IEnumerable<ProjectFile> all = conversion.ProjectFiles;
 IEnumerable<ProjectFile> rualsV1 =
     conversion.ProjectFiles.Where(projectFile =>
     Path.GetFileName(projectFile.Path).Equals("RestLocationServiceProxy.csproj", StringComparison.OrdinalIgnoreCase));
+IEnumerable<ProjectFile> locationServiceClientLibrary =
+    conversion.ProjectFiles.Where(projectFile =>
+    Path.GetFileName(projectFile.Path).Equals("LocationService.ClientLibrary.csproj", StringComparison.OrdinalIgnoreCase));
 
 IEnumerable<ProjectFile> projectFiles = all;
 
@@ -54,6 +57,9 @@ using (var it = tfms.GetEnumerator())
     }
 }
 
+// If there are inconsistencies between corext.config and packages.props, best to resolve them immediately, so break the build.
+const bool CheckExistingPackagesProps = false;
+
 XmlHelper.AddPackageReferencesToProject(
     packagesProps,
     corextPackages.Select(kvp => new BinaryReference(kvp.Key, kvp.Value)),
@@ -62,7 +68,8 @@ XmlHelper.AddPackageReferencesToProject(
     itemGroupLabel: "corext.config",
     itemGroupAttributes: [
         new KeyValuePair<string, string>("Condition", tfmCondition.ToString()),
-    ]);
+    ],
+    checkExisting: CheckExistingPackagesProps);
 
 foreach (ProjectFile projectFile in projectFiles)
 {
@@ -114,6 +121,7 @@ foreach (ProjectFile projectFile in projectFiles)
             }
         }
         XmlHelper.RemoveCompileItems(project, projectFile.Path);
+        XmlHelper.RemoveReferenceItems(project);
 
         project.Save(writer);
         outputStream.SetLength(outputStream.Position);
@@ -252,7 +260,10 @@ static void RemoveImportsAndAddPackageReferences(RepoConversion conversion, Proj
 
     XmlHelper.AddPackageReferencesToProject(project, packageReferenceList, "Include");
 
-    // TODO: Consider checking packages.props here for consistency.
+    // Add to packages.props here if it wasn't already added from the corext.config.
+    // That can happen if some DT '.targets' file actually represents a metapackage
+    // (imports multiple '.private.targets' files).
+    XmlHelper.AddPackageReferencesToProject(packagesProps, packageReferenceList, "Update", "Version", "corext.config", checkExisting: CheckExistingPackagesProps);
 
     // Assume this is already done - otherwise there wouldn't be a DLL in the build output.
     // XmlHelper.AddProjectReferencesToProject(...);
@@ -422,6 +433,7 @@ static int RemoveLegacyPackageImports(ProjectFile projectFile, XmlDocument proje
     }
 }
 
+// TODO: ugly and bad
 static class Caching
 {
     public static readonly ConcurrentDictionary<string, BinaryReference> PrivateTargetsCache = new(StringComparer.OrdinalIgnoreCase);

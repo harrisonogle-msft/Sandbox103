@@ -105,6 +105,33 @@ public static class XmlHelper
         }
     }
 
+    public static void RemoveReferenceItems(XmlDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        XmlElement project = GetProject(document);
+        List<XmlElement>? elementsToRemove = null;
+
+        if (project.SelectNodes("//ItemGroup/Reference") is XmlNodeList referenceItems)
+        {
+            foreach (XmlElement referenceItem in referenceItems)
+            {
+                (elementsToRemove ??= new()).Add(referenceItem);
+            }
+        }
+
+        if (elementsToRemove is not null)
+        {
+            foreach (var node in elementsToRemove)
+            {
+                if (node.ParentNode is XmlNode parent)
+                {
+                    parent.RemoveChild(node);
+                }
+            }
+        }
+    }
+
     public static void RemoveCompileItems(XmlDocument document, string projectPath)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -406,7 +433,8 @@ public static class XmlHelper
         string packageAttributeName,
         string? versionAttributeName = null,
         string? itemGroupLabel = null,
-        IEnumerable<KeyValuePair<string, string>>? itemGroupAttributes = null)
+        IEnumerable<KeyValuePair<string, string>>? itemGroupAttributes = null,
+        bool checkExisting = false)
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(packageReferences);
@@ -433,9 +461,9 @@ public static class XmlHelper
 
         XmlNode project = doc.SelectSingleNode("//Project") ?? throw new InvalidOperationException("Project node is missing.");
 
-        XmlNode? itemGroup = itemGroupLabel is not null ?
-            doc.SelectSingleNode($"//ItemGroup[@Label='{itemGroupLabel}' and PackageReference]") :
-            doc.SelectSingleNode("//ItemGroup[PackageReference]");
+        XmlElement? itemGroup = itemGroupLabel is not null ?
+            doc.SelectSingleNode($"//ItemGroup[@Label='{itemGroupLabel}' and PackageReference]") as XmlElement :
+            doc.SelectSingleNode("//ItemGroup[PackageReference]") as XmlElement;
 
         bool insertItemGroup = itemGroup is null;
 
@@ -461,7 +489,8 @@ public static class XmlHelper
 
         Debug.Assert(itemGroup is not null);
 
-        IReadOnlyDictionary<string, string?> existingPackageReferences = GetPackageReferences(doc);
+        IReadOnlyDictionary<string, string?> existingPackageReferences =
+            checkExisting ? GetPackageReferences(itemGroup) : GetPackageReferences(GetProject(doc));
 
         int count = 0;
 
@@ -538,15 +567,34 @@ public static class XmlHelper
         return results;
     }
 
-    public static IReadOnlyDictionary<string, string?> GetPackageReferences(XmlDocument doc)
+    public static IReadOnlyDictionary<string, string?> GetPackageReferences(XmlDocument document)
     {
-        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(document);
 
-        if (doc.SelectSingleNode("//ItemGroup[PackageReference]") is null ||
-            doc.SelectNodes("//PackageReference") is not XmlNodeList packageReferences)
+        if (document.SelectSingleNode("//ItemGroup[PackageReference]") is null ||
+            document.SelectNodes("//PackageReference") is not XmlNodeList packageReferences)
         {
             return FrozenDictionary<string, string?>.Empty;
         }
+
+        return GetPackageReferences(packageReferences);
+    }
+
+    public static IReadOnlyDictionary<string, string?> GetPackageReferences(XmlElement root)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+
+        if (root.SelectNodes("PackageReference") is not XmlNodeList packageReferences)
+        {
+            return FrozenDictionary<string, string?>.Empty;
+        }
+
+        return GetPackageReferences(packageReferences);
+    }
+
+    private static IReadOnlyDictionary<string, string?> GetPackageReferences(XmlNodeList packageReferences)
+    {
+        ArgumentNullException.ThrowIfNull(packageReferences);
 
         var results = new Dictionary<string, string?>();
 
