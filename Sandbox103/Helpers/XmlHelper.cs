@@ -1,4 +1,6 @@
-﻿using Sandbox103.BuildDrops;
+﻿using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
+using Sandbox103.BuildDrops;
 using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Security;
@@ -64,13 +66,55 @@ public static class XmlHelper
         }
     }
 
-    public static int RemoveProjectImports(XmlReader reader, XmlWriter writer, Predicate<string> predicate)
+    public static void RemoveCompileItems(XmlDocument document, string projectPath)
     {
-        var doc = new XmlDocument();
-        doc.Load(reader);
-        int result = RemoveProjectImports(doc, predicate);
-        doc.Save(writer);
-        return result;
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrEmpty(projectPath);
+
+        var projectFile = new FileInfo(projectPath);
+        if (!projectFile.Exists)
+        {
+            throw new FileNotFoundException("Project file not found.", projectPath);
+        }
+        if (projectFile.Directory is not DirectoryInfo projectDirectory)
+        {
+            throw new DirectoryNotFoundException("Project directory not found.");
+        }
+
+        XmlElement project = GetProject(document);
+        List<XmlElement>? elementsToRemove = null;
+
+        if (project.SelectNodes("//ItemGroup/Compile") is XmlNodeList compileItems)
+        {
+            var wrapper = new DirectoryInfoWrapper(projectDirectory);
+
+            foreach (XmlElement compile in compileItems)
+            {
+                string include = compile.GetAttribute("Include");
+
+                if (!string.IsNullOrEmpty(include))
+                {
+                    var match = new Matcher(StringComparison.OrdinalIgnoreCase);
+                    match.AddInclude(include);
+                    PatternMatchingResult result = match.Execute(wrapper);
+                    if (result.HasMatches)
+                    {
+                        (elementsToRemove ??= new()).Add(compile);
+                    }
+                }
+            }
+        }
+
+        if (elementsToRemove is not null)
+        {
+            foreach (var node in elementsToRemove)
+            {
+                if (node.ParentNode is XmlNode parent)
+                {
+                    parent.RemoveChild(node);
+                }
+            }
+        }
     }
 
     public static int RemoveProjectImports(XmlDocument doc, Predicate<string> predicate)

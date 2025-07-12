@@ -8,6 +8,7 @@ public class ProjectImportGraph
     private readonly Dictionary<string, ProjectImport> _lookup;
     private readonly string _srcRoot;
     private readonly string _rootProjectFile;
+    private readonly ProjectImport _rootProject;
 
     public ProjectImportGraph(
         HashSet<ProjectImport> projectImports,
@@ -24,6 +25,15 @@ public class ProjectImportGraph
         _lookup = lookup;
         _srcRoot = srcRoot;
         _rootProjectFile = rootProjectFile;
+
+        if (lookup.TryGetValue(rootProjectFile, out ProjectImport? rootProject))
+        {
+            _rootProject = rootProject;
+        }
+        else
+        {
+            throw new ArgumentException($"Root project file not found: '{rootProjectFile}'.", nameof(projectImports));
+        }
     }
 
     public IReadOnlySet<ProjectImport> ProjectImports => _projectImports;
@@ -31,6 +41,8 @@ public class ProjectImportGraph
     public string SrcRoot => _srcRoot;
 
     public string RootProjectFile => _rootProjectFile;
+
+    public ProjectImport RootProject => _rootProject;
 
     public bool TryGetValue(string path, [NotNullWhen(true)] out ProjectImport? value)
     {

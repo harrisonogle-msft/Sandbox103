@@ -1,10 +1,13 @@
-﻿namespace Sandbox103;
+﻿using Sandbox103.LogDrops;
+
+namespace Sandbox103;
 
 public class ProjectFile
 {
     private readonly string _path;
     private readonly string _binLogPath;
     private readonly string _binaryPath;
+    private ProjectImportGraph? _projectImportGraph;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProjectFile"/> class.
@@ -59,4 +62,12 @@ public class ProjectFile
     public string BinLogPath => _binLogPath;
 
     public string BinaryPath => _binaryPath;
+
+    public ProjectImportGraph Imports => _projectImportGraph ??= GetProjectImportGraph();
+
+    private ProjectImportGraph GetProjectImportGraph()
+    {
+        var builder = new ProjectImportGraphBuilder(BinLogPath);
+        return builder.Build();
+    }
 }

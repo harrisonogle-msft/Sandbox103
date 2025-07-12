@@ -57,7 +57,10 @@ public class XmlTests
 
         _output.WriteLine($"XML before:\n{xml}");
 
-        int numRemoved = XmlHelper.RemoveProjectImports(reader, writer, set.Contains);
+        var doc = new XmlDocument();
+        doc.Load(reader);
+        int numRemoved = XmlHelper.RemoveProjectImports(doc, set.Contains);
+        doc.Save(writer);
 
         destStream.SetLength(destStream.Position);
         destStream.Seek(0, SeekOrigin.Begin);

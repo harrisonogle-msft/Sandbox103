@@ -8,8 +8,7 @@ public static class ProjectFileExtensions
     {
         ArgumentNullException.ThrowIfNull(projectFile);
 
-        var builder = new ProjectImportGraphBuilder(projectFile.BinLogPath);
-        ProjectImportGraph graph = builder.Build();
+        ProjectImportGraph graph = projectFile.Imports;
 
         string projectFileName = Path.GetFileName(projectFile.Path);
 

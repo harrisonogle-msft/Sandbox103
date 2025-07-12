@@ -19,6 +19,8 @@ IEnumerable<ProjectFile> rualsV1 =
     conversion.ProjectFiles.Where(projectFile =>
     Path.GetFileName(projectFile.Path).Equals("RestLocationServiceProxy.csproj", StringComparison.OrdinalIgnoreCase));
 
+IEnumerable<ProjectFile> projectFiles = rualsV1;
+
 using var packagesPropsSourceStream = new MemoryStream(File.ReadAllBytes(conversion.PackagesPropsFile));
 using var packagesPropsReader = new XmlTextReader(packagesPropsSourceStream) { Namespaces = false };
 var packagesProps = new XmlDocument();
@@ -60,7 +62,7 @@ XmlHelper.AddPackageReferencesToProject(
         new KeyValuePair<string, string>("Condition", tfmCondition.ToString()),
     ]);
 
-foreach (ProjectFile projectFile in all)
+foreach (ProjectFile projectFile in projectFiles)
 {
     Console.WriteLine("---");
 
@@ -90,9 +92,9 @@ foreach (ProjectFile projectFile in all)
 
         XmlHelper.RemoveLegacyProjectAttributes(project);
         XmlHelper.RemoveSdkElements(project);
-        XmlHelper.AddSdkElement(project, "Corext.Before", [("Condition", "'$(EnableCorextSdk)' == 'true'")]);
+        XmlHelper.AddSdkElement(project, "Corext.Before", [("Condition", "'$(EnableCorextProjectSdk)' == 'true'")]);
         XmlHelper.AddSdkElement(project, "Microsoft.NET.Sdk");
-        XmlHelper.AddSdkElement(project, "Corext.After", [("Condition", "'$(EnableCorextSdk)' == 'true'")]);
+        XmlHelper.AddSdkElement(project, "Corext.After", [("Condition", "'$(EnableCorextProjectSdk)' == 'true'")]);
         XmlHelper.RemoveProjectImports(project, static name => name?.EndsWith("Microsoft.CSharp.targets", StringComparison.OrdinalIgnoreCase) is true);
         XmlHelper.RemoveProjectImports(project, static name => name?.EndsWith("\\Environment.props", StringComparison.OrdinalIgnoreCase) is true);
         XmlHelper.RemoveProjectImports(project, static name => string.Equals(name, "$(EnvironmentConfig)", StringComparison.OrdinalIgnoreCase));
@@ -105,6 +107,7 @@ foreach (ProjectFile projectFile in all)
                 XmlHelper.SetProperty(project, "TargetFramework", tfm);
             }
         }
+        XmlHelper.RemoveCompileItems(project, projectFile.Path);
 
         project.Save(writer);
         outputStream.SetLength(outputStream.Position);
@@ -126,7 +129,7 @@ using var srcDirectoryBuildPropsOutputStream = File.OpenWrite(conversion.SrcDire
 using var srcDirectoryBuildPropsXmlWriter = new ProjectFileXmlWriter(srcDirectoryBuildPropsOutputStream);
 var srcDirectoryBuildProps = new XmlDocument();
 srcDirectoryBuildProps.Load(srcDirectoryBuildPropsXmlReader);
-XmlHelper.SetProperty(srcDirectoryBuildProps, "EnableCorextSdk", "true");
+XmlHelper.SetProperty(srcDirectoryBuildProps, "EnableCorextProjectSdk", "true");
 srcDirectoryBuildProps.Save(srcDirectoryBuildPropsXmlWriter);
 
 Console.WriteLine("\nDone.");
@@ -136,19 +139,11 @@ static void AddPackageReferences(RepoConversion conversion, ProjectFile projectF
     ArgumentNullException.ThrowIfNull(conversion);
     ArgumentNullException.ThrowIfNull(projectFile);
     ArgumentNullException.ThrowIfNull(project);
+    ArgumentNullException.ThrowIfNull(packagesProps);
 
     var projectReferences = new HashSet<ProjectFile>();
     var packageReferences = new HashSet<BinaryReference>();
     var implicitPackageReferences = new Dictionary<string, BinaryReference>(StringComparer.OrdinalIgnoreCase);
-
-    //foreach (string directDependencyPath in AssemblyHelper.EnumerateDirectDependencyPaths(projectFile.BinaryPath))
-    //{
-    //    foreach (LocalAssembly transitiveDependency in AssemblyHelper.EnumerateDependencies(directDependencyPath))
-    //    {
-    //        BinaryReference packageReference = transitiveDependency.ToBinaryReference();
-    //        implicitPackageReferences[packageReference.Name] = packageReference;
-    //    }
-    //}
 
     foreach (LocalAssembly transitiveDependency in AssemblyHelper.EnumerateDependencies(seedAssemblies: AssemblyHelper.EnumerateDirectDependencyPaths(projectFile.BinaryPath)))
     {
@@ -202,44 +197,6 @@ static void AddPackageReferences(RepoConversion conversion, ProjectFile projectF
     }
 
     XmlHelper.AddPackageReferencesToProject(project, packageReferenceList, "Include");
-
-#if false
-    IReadOnlyDictionary<string, string?> currentPackagesProps = XmlHelper.GetPackageReferences(packagesProps);
-    foreach (BinaryReference packageReference in packageReferenceList)
-    {
-        string? versionAttr = null;
-
-        if (currentPackagesProps.TryGetValue(packageReference.Name, out string? currentVersion))
-        {
-            if (!string.Equals(currentVersion, packageReference.Version, StringComparison.OrdinalIgnoreCase))
-            {
-                versionAttr = "VersionOverride";
-            }
-        }
-        else
-        {
-            var tfmCondition = new StringBuilder();
-            IEnumerable<string> tfms = ["net45", "net451", "net452", "net46", "net461", "net462", "net47", "net471", "net472", "net48", "net481"];
-            using (var it = tfms.GetEnumerator())
-            {
-                if (it.MoveNext())
-                {
-                    tfmCondition.Append(CultureInfo.InvariantCulture, $"'$(TargetFramework)' == '{it.Current}'");
-                    while (it.MoveNext())
-                    {
-                        tfmCondition.Append(CultureInfo.InvariantCulture, $" OR '$(TargetFramework)' == '{it.Current}'");
-                    }
-                }
-            }
-            IEnumerable<KeyValuePair<string, string>> itemGroupAttributes = [
-                new KeyValuePair<string, string>("Condition", tfmCondition.ToString()),
-            ];
-            XmlHelper.AddPackageReferencesToProject(packagesProps, [packageReference], "Update", "Version", "AutoGenerated", itemGroupAttributes);
-        }
-
-        XmlHelper.AddPackageReferencesToProject(project, [packageReference], "Include", versionAttr, "AutoGenerated");
-    }
-#endif
 
     // Assume this is already done - otherwise there wouldn't be a DLL in the build output.
     // XmlHelper.AddProjectReferencesToProject(...);
