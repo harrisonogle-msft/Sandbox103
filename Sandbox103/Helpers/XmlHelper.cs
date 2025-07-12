@@ -19,10 +19,10 @@ public static class XmlHelper
     private const string Sdk = nameof(Sdk);
 
     public static bool TryParsePrivateTargets(
-    XmlDocument document,
-    string fileName,
-    [NotNullWhen(true)] out string? packageId,
-    [NotNullWhen(true)] out string? packageVersion)
+        XmlDocument document,
+        string fileName,
+        [NotNullWhen(true)] out string? packageId,
+        [NotNullWhen(true)] out string? packageVersion)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrEmpty(fileName);
