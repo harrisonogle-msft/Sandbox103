@@ -109,7 +109,7 @@ internal sealed class ProjectFileXmlEventSourceSubscriber : IEventSourceSubscrib
 
                         if (containsReferenceItem)
                         {
-                            _logger.LogDebug($"Archive file '{Path.GetFileName(archiveFile.Path)}' contains a `Reference` item!");
+                            _logger.LogInformation($"Archive file '{Path.GetFileName(archiveFile.Path)}' contains a `Reference` item!");
                         }
                         archiveFile.Features.Set<IContainsReferenceItemFeature>(new ContainsReferenceItemFeature(containsReferenceItem));
                     }
@@ -118,9 +118,8 @@ internal sealed class ProjectFileXmlEventSourceSubscriber : IEventSourceSubscrib
                     {
                         if (XmlHelper.TryParsePrivateTargets(document, projectFileName, out string? packageId, out string? packageVersion))
                         {
-                            _logger.LogDebug($"Parsed CoreXT package details from '{projectFileName}': {packageId}/{packageVersion}");
+                            _logger.LogInformation($"Parsed CoreXT package details from '{projectFileName}': {packageId}/{packageVersion}");
                             archiveFile.Features.Set<ICorextPackageFeature>(new CorextPackageFeature(packageId, packageVersion));
-                            Console.ReadKey();
                         }
                     }
                 }
