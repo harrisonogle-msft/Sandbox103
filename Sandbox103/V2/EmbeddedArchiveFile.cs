@@ -22,7 +22,7 @@ internal class EmbeddedArchiveFile : IArchiveFile
 
     public IFeatureCollection Features => _features;
 
-    public Stream Content => new MemoryStream(_content, writable: false);
+    public Stream GetStream() => new MemoryStream(_content, writable: false);
 
     public override bool Equals(object? obj) =>
         obj is EmbeddedArchiveFile other &&

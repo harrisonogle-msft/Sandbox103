@@ -30,5 +30,5 @@ public interface IArchiveFile
     /// <remarks>
     /// This stream is read-only.
     /// </remarks>
-    public Stream Content { get; }
+    public Stream GetStream();
 }
