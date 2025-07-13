@@ -24,7 +24,6 @@ public class BuildDropTests
 
         foreach (BuildDropProject project in buildDrop.EnumerateProjects())
         {
-            var helper = new AssemblyHelper();
             LocalAssembly info = LocalAssembly.FromPath(project.BinaryPath);
 
             if (info.AssemblyName.Name?.Contains("Microsoft.Management.Services.LocationService.RestLocationServiceProxy") is not true)
@@ -36,7 +35,7 @@ public class BuildDropTests
             var sb = new StringBuilder();
             sb.AppendLine(CultureInfo.InvariantCulture, $"{info.FileVersion,-20} {info.AssemblyName.FullName}");
 
-            foreach (LocalAssembly dep in helper.EnumerateDependencies(project.BinaryPath, null))
+            foreach (LocalAssembly dep in AssemblyHelper.EnumerateDependencies(project.BinaryPath, null))
             {
                 sb.AppendLine(CultureInfo.InvariantCulture, $"   {dep.FileVersion,-20} {dep.AssemblyName.FullName}");
             }

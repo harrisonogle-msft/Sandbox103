@@ -1,6 +1,6 @@
-﻿using Sandbox103.BuildDrops;
-using Sandbox103.Extensions;
+﻿using Sandbox103.Extensions;
 using Sandbox103.Helpers;
+using Sandbox103.V1.BuildDrops;
 
 namespace Sandbox103.Archive;
 
@@ -14,12 +14,12 @@ namespace Sandbox103.Archive;
 
 internal static class DetectPackageReferencesFromBuildOutput
 {
-    public static IReadOnlyList<BinaryReference> Archived_DetectPackageReferencesFromBuildOutput(RepoConversion conversion, ProjectFile projectFile)
+    public static IReadOnlyList<BinaryReference> Archived_DetectPackageReferencesFromBuildOutput(RepoConversionV1 conversion, ProjectFileV1 projectFile)
     {
         ArgumentNullException.ThrowIfNull(conversion);
         ArgumentNullException.ThrowIfNull(projectFile);
 
-        var projectReferences = new HashSet<ProjectFile>();
+        var projectReferences = new HashSet<ProjectFileV1>();
         var packageReferences = new HashSet<BinaryReference>();
         var implicitPackageReferences = new Dictionary<string, BinaryReference>(StringComparer.OrdinalIgnoreCase);
 
@@ -33,7 +33,7 @@ internal static class DetectPackageReferencesFromBuildOutput
         {
             BinaryReference reference = localAssembly.ToBinaryReference();
 
-            if (conversion.ProjectReferences.TryGetValue(reference, out ProjectFile? projectReference))
+            if (conversion.ProjectReferences.TryGetValue(reference, out ProjectFileV1? projectReference))
             {
                 projectReferences.Add(projectReference);
             }

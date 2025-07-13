@@ -11,13 +11,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="Microsoft.Build" Version="17.11.31" />
     <PackageReference Include="Microsoft.Build.Framework" Version="17.11.31" />
+    <PackageReference Include="Microsoft.Extensions.Features" Version="8.0.18" />
     <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="9.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.6" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Assets\*.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="appsettings.json" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
 </Project>
