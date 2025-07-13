@@ -5,7 +5,7 @@ namespace Sandbox103;
 
 // Need `Namespaces = false` property of `XmlTextWriter`, but also `OmitXmlDeclaration` behavior of `XmlWriterSettings`.
 // But `XmlTextWriter` does not use `XmlWriterSettings`, and `XmlWriter.Create` does not allow for creation of a writer
-// with `Namespaces = false` behavior.
+// with `Namespaces = false` behavior. The solution implemented here is to override `WriteStartDocument` to do nothing.
 public sealed class ProjectFileXmlWriter : XmlTextWriter
 {
     public ProjectFileXmlWriter(Stream stream) : base(stream, new UTF8Encoding(false))

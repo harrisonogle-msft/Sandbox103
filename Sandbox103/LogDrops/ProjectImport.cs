@@ -43,6 +43,18 @@ public class ProjectImport
     private readonly int _hashCode;
     private string? _projectFileContent;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ProjectImport"/> class.
+    /// </summary>
+    /// <param name="binLogPath">Local path to the <c>.binlog</c> file.</param>
+    /// <param name="projectFile">Build-time snapshot of the path to the project file.</param>
+    /// <param name="srcRoot">Build-time snapshot of the path to the <c>src</c> directory.</param>
+    /// <remarks>
+    /// The <paramref name="binLogPath"/> represents a path on the local machine.
+    /// The <paramref name="projectFile"/> and <paramref name="srcRoot"/> parameters represent
+    /// snapshots of paths on the build machine during the build. Those are important for
+    /// analyzing project imports, but those paths do not exist on the local machine.
+    /// </remarks>
     public ProjectImport(
         string binLogPath,
         string projectFile,
@@ -66,6 +78,10 @@ public class ProjectImport
     /// <summary>
     /// Relative path to the project file according to the binlog.
     /// </summary>
+    /// <remarks>
+    /// Uniquely identifies a <see cref="ProjectImport"/>. Can be used to distinguish 
+    /// distinct <see cref="ProjectImport"/> instances.
+    /// </remarks>
     public string RelativePath => _relativePath;
 
     /// <summary>
