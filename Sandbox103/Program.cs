@@ -36,7 +36,6 @@ if (commandLineOptions is not null)
     });
 }
 
-//builder.Services.AddHostedService<SdkStyleConversionHostedService>();
 builder.Services.TryAddSingleton<ILogDropReader, LogDropReader>();
 builder.Services.TryAddSingleton<IBinaryLogReader, BinaryLogReader>();
 builder.Services.TryAddSingleton<IArchiveFileIndex, ArchiveFileIndex>();
@@ -46,15 +45,6 @@ builder.Services.TryAddSingleton<ISourceRepositoryReader, SourceRepositoryReader
 builder.Services.TryAddSingleton<IProjectFileEvaluator, ProjectFileEvaluator>();
 builder.Services.TryAddSingleton<IProjectFileTransformer, ProjectFileTransformer>();
 builder.Services.TryAddSingleton<ISourceRepositoryTransformer, SourceRepositoryTransformer>();
-
-// If we want to do hundreds of these, use the event bus. For a console app designed to do just one, it's not necessary.
-//builder.Services.TryAddSingleton<EventBus>();
-//builder.Services.TryAddSingleton<IEventBus>(static sp => sp.GetRequiredService<EventBus>());
-//builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, EventBus>(static sp => sp.GetRequiredService<EventBus>()));
-//builder.Services.TryAddSingleton<IDispatcher, Dispatcher>();
-//builder.Services.AddOptions<EventBusOptions>().BindConfiguration("EventBus");
-//builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriber<SdkStyleConversionNotification>, LogDropPublisher>());
-//builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriber<LogDropNotification>, LogDropSubscriber>());
 
 IHost host = builder.Build();
 
