@@ -16,7 +16,7 @@ internal static class ProgramV1
 
         var conversion = new RepoConversionV1(new SdkStyleConversionOptions
         {
-            RepoPath = ConstantsV1.Repo.FullName,
+            RepositoryPath = ConstantsV1.Repo.FullName,
             LogDropPath = ConstantsV1.LogDrop.FullName,
             BuildDropPath = ConstantsV1.BuildDrop.FullName,
         });

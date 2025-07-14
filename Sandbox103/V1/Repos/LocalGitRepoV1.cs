@@ -15,7 +15,7 @@ public class LocalGitRepoV1
     private readonly string _src;
     private readonly string _corextConfig;
 
-    public LocalGitRepoV1(IOptions<SdkStyleConversionOptions> sdkStyleConversionOptions) : this(sdkStyleConversionOptions.Value.RepoPath)
+    public LocalGitRepoV1(IOptions<SdkStyleConversionOptions> sdkStyleConversionOptions) : this(sdkStyleConversionOptions.Value.RepositoryPath)
     {
     }
 

@@ -11,6 +11,7 @@ using Sandbox103.Options;
 using Sandbox103.V1.BuildDrops;
 using Sandbox103.V1.LogDrops;
 using Sandbox103.V1.Repos;
+using Sandbox103.V2.Notifications;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -39,46 +40,57 @@ if (commandLineOptions is not null)
     // Override the values with the ones from command line, if present.
     optionsBuilder.Configure(options =>
     {
-        options.RepoPath = commandLineOptions.RepoPath;
+        options.RepositoryPath = commandLineOptions.RepoPath;
         options.LogDropPath = commandLineOptions.LogDropPath;
         options.BuildDropPath = commandLineOptions.BuildDropPath;
     });
 }
 
-builder.Services.AddHostedService<SdkStyleConversionHostedService>();
+//builder.Services.AddHostedService<SdkStyleConversionHostedService>();
 builder.Services.TryAddSingleton<ILogDropReader, LogDropReader>();
 builder.Services.TryAddSingleton<IBinaryLogReader, BinaryLogReader>();
 builder.Services.TryAddSingleton<IArchiveFileIndex, ArchiveFileIndex>();
 builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IEventSourceSubscriber, ProjectImportEventSourceSubscriber>());
 builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IEventSourceSubscriber, ProjectFileXmlEventSourceSubscriber>());
+builder.Services.TryAddSingleton<ISourceRepositoryReader, SourceRepositoryReader>();
+builder.Services.TryAddSingleton<IProjectFileEvaluator, ProjectFileEvaluator>();
+builder.Services.TryAddSingleton<IProjectFileTransformer, ProjectFileTransformer>();
+builder.Services.TryAddSingleton<ISourceRepositoryTransformer, SourceRepositoryTransformer>();
+
+// If we want to do hundreds of these, use the event bus. For a console app designed to do just one, it's not necessary.
+//builder.Services.TryAddSingleton<EventBus>();
+//builder.Services.TryAddSingleton<IEventBus>(static sp => sp.GetRequiredService<EventBus>());
+//builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, EventBus>(static sp => sp.GetRequiredService<EventBus>()));
+//builder.Services.TryAddSingleton<IDispatcher, Dispatcher>();
+//builder.Services.AddOptions<EventBusOptions>().BindConfiguration("EventBus");
+//builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriber<SdkStyleConversionNotification>, LogDropPublisher>());
+//builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriber<LogDropNotification>, LogDropSubscriber>());
 
 IHost host = builder.Build();
 
 var logger = host.Services.GetRequiredService<ILogger<Program>>();
 var options = host.Services.GetRequiredService<IOptions<SdkStyleConversionOptions>>().Value;
 
-using (var startupCancellation = new CancellationTokenSource(commandLineOptions?.Timeout ?? CommandLineOptions.DefaultTimeout))
-{
-    long t0 = Stopwatch.GetTimestamp();
-    try
-    {
-        logger.LogInformation("Starting the host.");
-        await host.StartAsync(startupCancellation.Token);
-        logger.LogInformation("Host start sequence completed. ({0})", Stopwatch.GetElapsedTime(t0));
-    }
-    catch (OperationCanceledException)
-    {
-        logger.LogError("Host start sequence timed out. ({0})", Stopwatch.GetElapsedTime(t0));
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Host start sequence failed. ({0})", Stopwatch.GetElapsedTime(t0));
-    }
-}
+using var cancellation = new CancellationTokenSource(commandLineOptions?.Timeout ?? CommandLineOptions.DefaultTimeout);
+CancellationToken cancellationToken = cancellation.Token;
 
-using (var stopCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+await host.StartAsync(cancellationToken);
+
+// Read all `.binlog` files in the log drop and index them.
+var logDropReader = host.Services.GetRequiredService<ILogDropReader>();
+ILogDrop logDrop = await logDropReader.ReadAsync(new LogDropReaderOptions { Path = options.LogDropPath }, cancellationToken);
+
+// Associate each indexed binlog project file with a project file in the local source repository.
+var repoReader = host.Services.GetRequiredService<ISourceRepositoryReader>();
+ISourceRepository repoIndex = await repoReader.ReadAsync(options.RepositoryPath, logDrop, cancellationToken);
+
+// Transform the repo, including conversion of each project file to SDK-style.
+var repoTransformer = host.Services.GetRequiredService<ISourceRepositoryTransformer>();
+await repoTransformer.TransformAsync(repoIndex, cancellationToken);
+
+using (var stopCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
 {
-    await host.StopAsync(stopCancellation.Token);
+    await host.StopAsync(stopCancellation.Token).WaitAsync(stopCancellation.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
 }
 
 Console.WriteLine("\nDone.");

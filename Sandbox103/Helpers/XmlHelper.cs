@@ -431,6 +431,25 @@ public static class XmlHelper
         XmlDocument doc,
         IEnumerable<BinaryReference> packageReferences,
         string packageAttributeName,
+        string? versionAttributeName,
+        string? itemGroupLabel,
+        IEnumerable<ValueTuple<string, string>>? itemGroupAttributes,
+        bool checkExisting = false)
+    {
+        return AddPackageReferencesToProject(
+            doc,
+            packageReferences,
+            packageAttributeName,
+            versionAttributeName,
+            itemGroupLabel,
+            itemGroupAttributes?.Select(static x => new KeyValuePair<string, string>(x.Item1, x.Item2)),
+            checkExisting);
+    }
+
+    public static int AddPackageReferencesToProject(
+        XmlDocument doc,
+        IEnumerable<BinaryReference> packageReferences,
+        string packageAttributeName,
         string? versionAttributeName = null,
         string? itemGroupLabel = null,
         IEnumerable<KeyValuePair<string, string>>? itemGroupAttributes = null,

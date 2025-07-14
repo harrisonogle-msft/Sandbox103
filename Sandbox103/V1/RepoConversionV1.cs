@@ -27,7 +27,7 @@ public class RepoConversionV1
     private List<ProjectFileV1>? _projectFiles;
 
     public RepoConversionV1(SdkStyleConversionOptions options) : this(
-        new LocalGitRepoV1(options.RepoPath),
+        new LocalGitRepoV1(options.RepositoryPath),
         new LogDropV1(options.LogDropPath),
         new BuildDropV1(options.BuildDropPath))
     {

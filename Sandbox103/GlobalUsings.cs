@@ -13,3 +13,5 @@ global using Sandbox103.V1.LogDrops;
 global using Sandbox103.V1.Repos;
 global using Sandbox103.V2;
 global using Sandbox103.V2.Abstractions;
+global using Sandbox103.V2.Events;
+global using Sandbox103.V2.Notifications;
