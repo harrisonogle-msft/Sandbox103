@@ -56,21 +56,33 @@ CancellationToken cancellationToken = cancellation.Token;
 
 await host.StartAsync(cancellationToken);
 
-// Read all `.binlog` files in the log drop and index them.
-var logDropReader = host.Services.GetRequiredService<ILogDropReader>();
-ILogDrop logDrop = await logDropReader.ReadAsync(new LogDropReaderOptions { Path = options.LogDropPath }, cancellationToken);
-
-// Associate each indexed binlog project file with a project file in the local source repository.
-var repoReader = host.Services.GetRequiredService<ISourceRepositoryReader>();
-ISourceRepository repoIndex = await repoReader.ReadAsync(options.RepositoryPath, logDrop, cancellationToken);
-
-// Transform the repo, including conversion of each project file to SDK-style.
-var repoTransformer = host.Services.GetRequiredService<ISourceRepositoryTransformer>();
-await repoTransformer.TransformAsync(repoIndex, cancellationToken);
-
-using (var stopCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+try
 {
-    await host.StopAsync(stopCancellation.Token).WaitAsync(stopCancellation.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-}
+    // Read all `.binlog` files in the log drop and index them.
+    var logDropReader = host.Services.GetRequiredService<ILogDropReader>();
+    ILogDrop logDrop = await logDropReader.ReadAsync(new LogDropReaderOptions { Path = options.LogDropPath }, cancellationToken);
 
-Console.WriteLine($"\nDone. {Stopwatch.GetElapsedTime(t0)}");
+    // Associate each indexed binlog project file with a project file in the local source repository.
+    var repoReader = host.Services.GetRequiredService<ISourceRepositoryReader>();
+    ISourceRepository repoIndex = await repoReader.ReadAsync(options.RepositoryPath, logDrop, cancellationToken);
+
+    // Transform the repo, including conversion of each project file to SDK-style.
+    var repoTransformer = host.Services.GetRequiredService<ISourceRepositoryTransformer>();
+    await repoTransformer.TransformAsync(repoIndex, cancellationToken);
+
+    return 0;
+}
+catch (Exception ex)
+{
+    logger.LogError(ex, "Fatal error.");
+    return 1;
+}
+finally
+{
+    using (var stopCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+    {
+        await host.StopAsync(stopCancellation.Token).WaitAsync(stopCancellation.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+    }
+
+    Console.WriteLine($"\nDone. {Stopwatch.GetElapsedTime(t0)}");
+}
