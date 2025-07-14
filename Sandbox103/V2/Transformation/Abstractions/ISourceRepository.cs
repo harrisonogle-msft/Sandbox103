@@ -7,4 +7,6 @@ internal interface ISourceRepository
     public string PackagesPropsPath { get; }
 
     public string CorextConfigPath { get; }
+
+    public string DirectoryBuildPropsPath { get; }
 }

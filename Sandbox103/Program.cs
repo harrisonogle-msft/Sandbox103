@@ -1,22 +1,12 @@
 ﻿using CommandLine;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Sandbox103.Extensions;
-using Sandbox103.Helpers;
-using Sandbox103.Options;
-using Sandbox103.V1.BuildDrops;
-using Sandbox103.V1.LogDrops;
-using Sandbox103.V1.Repos;
-using Sandbox103.V2.Notifications;
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Globalization;
-using System.Text;
-using System.Xml;
+
+long t0 = Stopwatch.GetTimestamp();
 
 // Parse command line options.
 CommandLineOptions? commandLineOptions = Parser.Default.ParseArguments<CommandLineOptions>(args).WithNotParsed(HandleCommandLineError).Value;
@@ -93,4 +83,4 @@ using (var stopCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5
     await host.StopAsync(stopCancellation.Token).WaitAsync(stopCancellation.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
 }
 
-Console.WriteLine("\nDone.");
+Console.WriteLine($"\nDone. {Stopwatch.GetElapsedTime(t0)}");

@@ -79,6 +79,8 @@ internal sealed class SourceRepositoryTransformer : ISourceRepositoryTransformer
                 packagesPropsFileStream.SetLength(packagesPropsFileStream.Position);
             }
         }
+
+        TransformDirectoryBuildProps(repository.DirectoryBuildPropsPath);
     }
 
     private HashSet<BinaryReference> ReadPackageReferences(XmlDocument corextConfig)
@@ -91,12 +93,28 @@ internal sealed class SourceRepositoryTransformer : ISourceRepositoryTransformer
     {
         XmlHelper.AddPackageReferencesToProject(
             packagesProps,
-            packageReferences,
+            packageReferences.OrderBy(static x => x.Name),
             "Update",
             "Version",
             itemGroupLabel: "corext.config",
             itemGroupAttributes: [("Condition", ConvertedProjectTfmCondition)],
             checkExisting: false);
+    }
+
+    private void TransformDirectoryBuildProps(string directoryBuildPropsPath)
+    {
+        ThrowHelper.ThrowIfFileNotFound(directoryBuildPropsPath);
+
+        using var srcDirectoryBuildPropsStream = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(directoryBuildPropsPath)));
+        using var srcDirectoryBuildPropsTextReader = new StreamReader(srcDirectoryBuildPropsStream, Encoding.UTF8);
+        using var srcDirectoryBuildPropsXmlReader = new XmlTextReader(srcDirectoryBuildPropsTextReader);
+        using var srcDirectoryBuildPropsOutputStream = File.OpenWrite(directoryBuildPropsPath);
+        using var srcDirectoryBuildPropsXmlWriter = new ProjectFileXmlWriter(srcDirectoryBuildPropsOutputStream);
+
+        var srcDirectoryBuildProps = new XmlDocument();
+        srcDirectoryBuildProps.Load(srcDirectoryBuildPropsXmlReader);
+        XmlHelper.SetProperty(srcDirectoryBuildProps, ConstantsV1.EnableCorextProjectSdk, "true");
+        srcDirectoryBuildProps.Save(srcDirectoryBuildPropsXmlWriter);
     }
 
     private static string GetTfmCondition(IEnumerable<string> tfms)

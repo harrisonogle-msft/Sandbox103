@@ -78,7 +78,7 @@ internal class SourceRepositoryReader : ISourceRepositoryReader
         try
         {
             packagesPropsPath =
-                Directory.EnumerateDirectories(repositoryPath, "src", AllDirectories )
+                Directory.EnumerateDirectories(repositoryPath, "src", AllDirectories)
                     .SelectMany(src => Directory.EnumerateFiles(src, "packages.props", TopDirectoryOnly))
                     .SingleOrDefault() ??
                 Directory.EnumerateFiles(repositoryPath, "packages.props", AllDirectories)
@@ -106,11 +106,44 @@ internal class SourceRepositoryReader : ISourceRepositoryReader
             throw;
         }
 
+        string? directoryBuildPropsPath;
+        try
+        {
+            directoryBuildPropsPath = Directory.EnumerateDirectories(repositoryPath, "src", AllDirectories)
+                .SelectMany(src => Directory.EnumerateFiles(src, "directory.build.props", TopDirectoryOnly))
+                .SingleOrDefault();
+
+            if (directoryBuildPropsPath is null)
+            {
+                string srcRoot = Directory.EnumerateDirectories(repositoryPath, "src", AllDirectories).Single();
+                directoryBuildPropsPath = Path.Join(srcRoot, "directory.build.props");
+            }
+
+            if (!File.Exists(directoryBuildPropsPath))
+            {
+                _logger.LogInformation($"Creating directory.build.props file: {directoryBuildPropsPath}");
+                File.WriteAllText(directoryBuildPropsPath, """
+                <Project>
+                  <!-- Import the parent directory.build.props file. -->
+                  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" Condition="Exists($([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../')))"/>
+                  <PropertyGroup>
+                  </PropertyGroup>
+                </Project>
+                """);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to find 'src/directory.build.props' file.");
+            throw;
+        }
+
         _logger.LogInformation($"Found 'packages.props' path: {packagesPropsPath}");
 
         return Task.FromResult<ISourceRepository>(new SourceRepository(
             projectFiles.AsReadOnly(),
             packagesPropsPath,
-            corextConfigPath));
+            corextConfigPath,
+            directoryBuildPropsPath));
     }
 }

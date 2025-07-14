@@ -77,6 +77,27 @@ internal sealed class ProjectFileTransformer : IProjectFileTransformer
                 _logger.LogInformation($"Removed {numRemoved} project import(s).");
             }
 
+            XmlHelper.RemoveLegacyProjectAttributes(document);
+            XmlHelper.RemoveSdkElements(document);
+            XmlHelper.AddSdkElement(document, "Corext.Before", [("Condition", $"'$({ConstantsV1.EnableCorextProjectSdk})' == 'true'")]);
+            XmlHelper.AddSdkElement(document, "Microsoft.NET.Sdk");
+            XmlHelper.AddSdkElement(document, "Corext.After", [("Condition", $"'$({ConstantsV1.EnableCorextProjectSdk})' == 'true'")]);
+            XmlHelper.RemoveProjectImports(document, static name => name?.EndsWith("Microsoft.CSharp.targets", StringComparison.OrdinalIgnoreCase) is true);
+            XmlHelper.RemoveProjectImports(document, static name => name?.EndsWith("\\Environment.props", StringComparison.OrdinalIgnoreCase) is true);
+            XmlHelper.RemoveProjectImports(document, static name => string.Equals(name, "$(EnvironmentConfig)", StringComparison.OrdinalIgnoreCase));
+            if (XmlHelper.GetProperty(document, "TargetFrameworks") is null &&
+                XmlHelper.GetProperty(document, "TargetFramework") is null)
+            {
+                //string? tfm = LocalAssembly.GetTargetFrameworkMoniker(projectFile.BinaryPath);
+                //if (!string.IsNullOrEmpty(tfm))
+                //{
+                //    XmlHelper.SetProperty(document, "TargetFramework", tfm);
+                //}
+                XmlHelper.SetProperty(document, "TargetFramework", "net472");
+            }
+            XmlHelper.RemoveCompileItems(document, projectFile.Path);
+            XmlHelper.RemoveReferenceItems(document);
+
             using var targetStream = File.OpenWrite(projectFile.Path);
             using var targetXmlWriter = new ProjectFileXmlWriter(targetStream);
 
