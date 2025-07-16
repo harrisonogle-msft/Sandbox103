@@ -6,13 +6,13 @@ using System.Diagnostics;
 
 namespace Sandbox103.V2;
 
-internal sealed class ProjectImportEventSourceSubscriber : IEventSourceSubscriber
+internal sealed class ProjectFeaturesEventSourceSubscriber : IEventSourceSubscriber
 {
-    private readonly ILogger<ProjectImportEventSourceSubscriber> _logger;
+    private readonly ILogger<ProjectFeaturesEventSourceSubscriber> _logger;
     private readonly IArchiveFileIndex _archiveFileIndex;
 
-    public ProjectImportEventSourceSubscriber(
-        ILogger<ProjectImportEventSourceSubscriber> logger,
+    public ProjectFeaturesEventSourceSubscriber(
+        ILogger<ProjectFeaturesEventSourceSubscriber> logger,
         IArchiveFileIndex archiveFileIndex)
     {
         ArgumentNullException.ThrowIfNull(logger);

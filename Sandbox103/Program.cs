@@ -39,7 +39,7 @@ if (commandLineOptions is not null)
 builder.Services.TryAddSingleton<ILogDropReader, LogDropReader>();
 builder.Services.TryAddSingleton<IBinaryLogReader, BinaryLogReader>();
 builder.Services.TryAddSingleton<IArchiveFileIndex, ArchiveFileIndex>();
-builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IEventSourceSubscriber, ProjectImportEventSourceSubscriber>());
+builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IEventSourceSubscriber, ProjectFeaturesEventSourceSubscriber>());
 builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IEventSourceSubscriber, ProjectFileXmlEventSourceSubscriber>());
 builder.Services.TryAddSingleton<ISourceRepositoryReader, SourceRepositoryReader>();
 builder.Services.TryAddSingleton<IProjectFileEvaluator, ProjectFileEvaluator>();

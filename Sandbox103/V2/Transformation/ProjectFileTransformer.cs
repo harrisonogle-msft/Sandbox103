@@ -88,11 +88,21 @@ internal sealed class ProjectFileTransformer : IProjectFileTransformer
             if (XmlHelper.GetProperty(document, "TargetFrameworks") is null &&
                 XmlHelper.GetProperty(document, "TargetFramework") is null)
             {
-                //string? tfm = LocalAssembly.GetTargetFrameworkMoniker(projectFile.BinaryPath);
-                //if (!string.IsNullOrEmpty(tfm))
-                //{
-                //    XmlHelper.SetProperty(document, "TargetFramework", tfm);
-                //}
+                IArchiveFile archiveFile = projectFile.BinaryLog.ProjectFile;
+                const string DefaultTfm = "net472";
+                string tfm;
+                if (archiveFile.TryGetProperties(out IDictionary<string, string>? properties) &&
+                    properties.TryGetValue("TargetFramework", out string? tfmProperty) &&
+                    !string.IsNullOrEmpty(tfmProperty))
+                {
+                    _logger.LogInformation($"Found target framework '{tfmProperty}' in project '{projectFileName}'.");
+                    tfm = tfmProperty;
+                }
+                else
+                {
+                    _logger.LogWarning($"Project '{projectFileName}' does not define a TargetFramework, and a PropertyGroup value for TargetFramework was not found in the binlog. Default of '{DefaultTfm}' will be used.");
+                    tfm = DefaultTfm;
+                }
                 XmlHelper.SetProperty(document, "TargetFramework", "net472");
             }
             XmlHelper.RemoveCompileItems(document, projectFile.Path);
