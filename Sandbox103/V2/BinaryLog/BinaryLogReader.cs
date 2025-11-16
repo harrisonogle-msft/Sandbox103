@@ -55,7 +55,7 @@ internal sealed class BinaryLogReader : IBinaryLogReader
                 subscriber.EventSourceCreated(eventSource, projectFile);
             }
 
-            eventSource.Replay(options.Path, cancellationToken);
+            eventSource.ReplayWithForwardCompatibility(options.Path, cancellationToken);
             eventSource.Dispatch(new EventSourceStopped());
 
             _logger.LogInformation($"Binary log event replay finished. {Stopwatch.GetElapsedTime(t0)}");
@@ -89,7 +89,8 @@ internal sealed class BinaryLogReader : IBinaryLogReader
         eventSource.ProjectStarted += ProjectStarted;
         eventSource.AnyEventRaised += ProjectEvaluationStarted;
 
-        eventSource.Replay(path, cancellationToken);
+        //eventSource.Replay(path, cancellationToken); // does not allow forward compatibility by default
+        eventSource.ReplayWithForwardCompatibility(path, cancellationToken);
 
         _logger.LogInformation($"Finished reading the binlog. Found {count} new archive file(s). ({Stopwatch.GetElapsedTime(t0)})");
 

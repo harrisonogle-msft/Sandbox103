@@ -371,6 +371,17 @@ public static class XmlHelper
         return null;
     }
 
+    public static void SetSdkMetadata(XmlDocument document, string value)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrEmpty(value);
+        ThrowIfInvalidAttributeValue(value);
+
+        XmlElement project = GetProject(document);
+
+        project.SetAttribute("Sdk", value);
+    }
+
     public static void AddSdkElement(XmlDocument document, string name, IEnumerable<ValueTuple<string, string>>? attributes)
     {
         AddSdkElement(

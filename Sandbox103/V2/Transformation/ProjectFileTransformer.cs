@@ -79,9 +79,15 @@ internal sealed class ProjectFileTransformer : IProjectFileTransformer
 
             XmlHelper.RemoveLegacyProjectAttributes(document);
             XmlHelper.RemoveSdkElements(document);
-            XmlHelper.AddSdkElement(document, "Corext.Before", [("Condition", $"'$({ConstantsV1.EnableCorextProjectSdk})' == 'true'")]);
-            XmlHelper.AddSdkElement(document, "Microsoft.NET.Sdk");
-            XmlHelper.AddSdkElement(document, "Corext.After", [("Condition", $"'$({ConstantsV1.EnableCorextProjectSdk})' == 'true'")]);
+
+            // Do it like this to set a flag to toggle CoreXT locally.
+            //XmlHelper.AddSdkElement(document, "Corext.Before", [("Condition", $"'$({ConstantsV1.EnableCorextProjectSdk})' == 'true'")]);
+            //XmlHelper.AddSdkElement(document, "Microsoft.NET.Sdk");
+            //XmlHelper.AddSdkElement(document, "Corext.After", [("Condition", $"'$({ConstantsV1.EnableCorextProjectSdk})' == 'true'")]);
+
+            // Do it like this to avoid ugliness.
+            XmlHelper.SetSdkMetadata(document, "Corext.Before;Microsoft.NET.Sdk;Corext.After");
+
             XmlHelper.RemoveProjectImports(document, static name => name?.EndsWith("Microsoft.CSharp.targets", StringComparison.OrdinalIgnoreCase) is true);
             XmlHelper.RemoveProjectImports(document, static name => name?.EndsWith("\\Environment.props", StringComparison.OrdinalIgnoreCase) is true);
             XmlHelper.RemoveProjectImports(document, static name => string.Equals(name, "$(EnvironmentConfig)", StringComparison.OrdinalIgnoreCase));

@@ -2,7 +2,7 @@
   "profiles": {
     "Sandbox103": {
       "commandName": "Project",
-      "commandLineArgs": "--repo \"C:\\msazure\\Intune\\Svc\\ProxyFrontEnd2\"\r\n--log-drop \"C:\\Users\\harrisonogle\\temp\\sandbox\\Sandbox103\\drops\\6.2508.8.0\\log\"\r\n--build-drop \"C:\\Users\\harrisonogle\\temp\\sandbox\\Sandbox103\\drops\\6.2508.8.0\\build\"",
+      "commandLineArgs": "--repo \"C:\\src\\Intune-Svc-MAMLocation\"\r\n--log-drop \"C:\\Users\\harrisonogle\\temp\\2025-11-16\\MAM\\log-6.2601.17.0\"\r\n--build-drop \"C:\\Users\\harrisonogle\\temp\\2025-11-16\\MAM\\build-6.2601.17.0\"",
       "hotReloadEnabled": false
     }
   }
